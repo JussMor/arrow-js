@@ -222,17 +222,13 @@ const nouns = [
 
 let rowId = 1
 let selectedRow
-let ids = []
-let labels = []
-let rowNodes = []
 let labelNodes = []
 let refsDirty = false
 
-const rowHead = '<tr data-id="'
-const rowHeadMid = '"><td class="col-md-1">'
-const rowLabelMid = '</td><td class="col-md-4"><a data-action="select">'
+const rowHead = '<tr><td class="col-md-1">'
+const rowHeadMid = '</td><td class="col-md-4"><a>'
 const rowTail =
-  '</a></td><td class="col-md-1"><a data-action="remove"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>'
+  '</a></td><td class="col-md-1"><a><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>'
 
 function createLabel() {
   return (
@@ -250,82 +246,42 @@ function clearSelection() {
 }
 
 function clearRows() {
-  ids = []
-  labels = []
-  rowNodes = []
   labelNodes = []
   refsDirty = false
   tbody.textContent = ''
 }
 
 function buildRowsHtml(count) {
-  const nextIds = new Array(count)
-  const nextLabels = new Array(count)
-  const rows = new Array(count)
+  let rows = ''
   for (let i = 0; i < count; i++) {
     const id = rowId++
     const label = createLabel()
-    nextIds[i] = id
-    nextLabels[i] = label
-    rows[i] = rowHead + id + rowHeadMid + id + rowLabelMid + label + rowTail
+    rows += rowHead + id + rowHeadMid + label + rowTail
   }
-  return [nextIds, nextLabels, rows.join('')]
+  return rows
 }
 
 function appendRows(count) {
-  const next = buildRowsHtml(count)
-  ids.push(...next[0])
-  labels.push(...next[1])
-  tbody.insertAdjacentHTML('beforeend', next[2])
+  tbody.insertAdjacentHTML('beforeend', buildRowsHtml(count))
   refsDirty = true
 }
 
 function setRows(count) {
-  const next = buildRowsHtml(count)
-  ids = next[0]
-  labels = next[1]
-  rowNodes = []
   labelNodes = []
   refsDirty = true
-  tbody.innerHTML = next[2]
+  tbody.innerHTML = buildRowsHtml(count)
 }
 
-function setLots(count) {
-  const next = buildRowsHtml(count)
-  ids = next[0]
-  labels = next[1]
-  rowNodes = []
-  labelNodes = []
-  refsDirty = true
-  tbody.innerHTML = next[2]
-}
-
-function ensureRefs() {
+function ensureLabelNodes() {
   if (!refsDirty) return
-  const len = ids.length
-  rowNodes = new Array(len)
+  const len = tbody.childElementCount
   labelNodes = new Array(len)
   let row = tbody.firstElementChild
   for (let i = 0; i < len; i++) {
-    const current = row
-    rowNodes[i] = current
-    labelNodes[i] = current.children[1].firstElementChild.firstChild
-    row = current.nextElementSibling
+    labelNodes[i] = row.children[1].firstChild.firstChild
+    row = row.nextElementSibling
   }
   refsDirty = false
-}
-
-function findIndexById(id) {
-  for (let i = 0; i < ids.length; i++) {
-    if (ids[i] === id) return i
-  }
-  return -1
-}
-
-function swap(list, left, right) {
-  const value = list[left]
-  list[left] = list[right]
-  list[right] = value
 }
 
 function select(row) {
@@ -337,17 +293,16 @@ function select(row) {
 
 function handleTableClick(evt) {
   if (!(evt.target instanceof Element)) return
-  const actionNode = evt.target.closest('[data-action]')
+  const actionNode = evt.target.closest('a')
   if (!actionNode) return
-  const row = actionNode.closest('tr')
+  const cell = actionNode.parentElement
+  const row = cell?.parentElement
   if (!row) return
-  const id = Number(row.getAttribute('data-id'))
-  if (!id) return
   evt.preventDefault()
-  if (actionNode.getAttribute('data-action') === 'select') {
+  if (cell.cellIndex === 1) {
     select(row)
-  } else {
-    remove(id)
+  } else if (cell.cellIndex === 2) {
+    remove(row)
   }
 }
 
@@ -361,25 +316,17 @@ function clear() {
 }
 
 function partialUpdate() {
-  ensureRefs()
+  ensureLabelNodes()
   for (let i = 0; i < labelNodes.length; i += 10) {
-    const value = labels[i] + ' !!!'
-    labels[i] = value
-    labelNodes[i].data = value
+    labelNodes[i].data += ' !!!'
   }
 }
 
-function remove(id) {
-  ensureRefs()
-  const index = findIndexById(id)
-  if (index < 0) return
-  const row = rowNodes[index]
+function remove(row) {
   if (selectedRow === row) selectedRow = undefined
   row.remove()
-  ids.splice(index, 1)
-  labels.splice(index, 1)
-  rowNodes.splice(index, 1)
-  labelNodes.splice(index, 1)
+  labelNodes = []
+  refsDirty = true
 }
 
 function run() {
@@ -389,22 +336,19 @@ function run() {
 
 function runLots() {
   clearSelection()
-  setLots(10000)
+  setRows(10000)
 }
 
 function swapRows() {
-  if (ids.length <= 998) return
-  ensureRefs()
-  const left = rowNodes[1]
-  const right = rowNodes[998]
+  const rows = tbody.children
+  if (rows.length <= 998) return
+  const left = rows[1]
+  const right = rows[998]
   const afterLeft = left.nextSibling
   const afterRight = right.nextSibling
   tbody.insertBefore(right, afterLeft)
   tbody.insertBefore(left, afterRight)
-  swap(ids, 1, 998)
-  swap(labels, 1, 998)
-  swap(rowNodes, 1, 998)
-  swap(labelNodes, 1, 998)
+  refsDirty = true
 }
 
 const root = document.getElementById('arrow')
