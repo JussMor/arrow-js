@@ -1,81 +1,38 @@
 {
-  "name": "@arrow-js/core",
+  "name": "arrow-workspace",
   "private": true,
-  "version": "1.0.0-alpha.9",
-  "description": "Reactivity without the framework.",
-  "author": "Justin Schroeder <justin@wearebraid.com>",
-  "license": "MIT",
-  "main": "dist/index.min.mjs",
-  "module": "dist/index.min.mjs",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs"
-    },
-    "./package.json": "./package.json"
-  },
-  "directories": {
-    "doc": "docs",
-    "test": "test"
-  },
+  "packageManager": "pnpm@10.14.0",
   "type": "module",
-  "devDependencies": {
-    "@rollup/plugin-typescript": "^11.0.0",
-    "@size-limit/preset-small-lib": "^8.2.4",
-    "@types/node": "^18.15.0",
-    "@typescript-eslint/eslint-plugin": "^4.9.5",
-    "@typescript-eslint/parser": "^4.9.5",
-    "chalk": "^5.2.0",
-    "eslint": "^7.19.0",
-    "eslint-config-standard": "^16.0.2",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.3.1",
-    "execa": "^7.1.1",
-    "jsdom": "^21.1.1",
-    "prettier": "^2.3.0",
-    "rollup": "^3.19.1",
-    "rollup-plugin-dts": "^5.2.0",
-    "shx": "^0.3.4",
-    "size-limit": "^8.2.4",
-    "terser": "^5.5.1",
-    "ts-node": "^10.9.1",
-    "tslib": "^2.5.0",
-    "typescript": "^4.9.5",
-    "vite": "^4.1.4",
-    "vitest": "^0.29.7"
-  },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=20.19.0 || >=22.12.0"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.min.mjs",
-      "limit": "3 KB",
-      "gzip": true
-    }
-  ],
   "scripts": {
-    "dev": "cd docs && vite --config=vite.config.ts",
-    "build:docs": "cd docs && vite build --config=vite.config.ts",
-    "build:runtime": "node build/pack.mjs && pnpm minify",
-    "build": "node build/pack.mjs && pnpm minify && pnpm size",
+    "dev": "pnpm --filter @arrow-js/docs dev",
+    "build": "pnpm --filter @arrow-js/core build && pnpm --filter @arrow-js/docs build",
+    "preview": "pnpm --filter @arrow-js/docs preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "size": "node build/size.mjs",
-    "size:gzip": "size-limit",
-    "minify": "node build/terser.js",
-    "verify": "pnpm test && pnpm typecheck && pnpm build",
-    "benchmark:setup": "node bench/js-framework-benchmark/setup.mjs",
-    "benchmark:sync": "node bench/js-framework-benchmark/sync.mjs",
-    "benchmark:prepare": "pnpm build && pnpm benchmark:setup && pnpm benchmark:sync",
-    "benchmark:run": "node bench/js-framework-benchmark/run.mjs",
-    "benchmark:smoke": "node bench/js-framework-benchmark/run.mjs --preset smoke --smoketest",
-    "benchmark:core": "node bench/js-framework-benchmark/run.mjs --preset core",
-    "benchmark:targets": "node bench/js-framework-benchmark/run.mjs --preset targets",
-    "benchmark:breadth": "node bench/js-framework-benchmark/run.mjs --preset breadth",
-    "benchmark:report": "node bench/js-framework-benchmark/report.mjs"
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "install:browsers": "playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@size-limit/preset-small-lib": "^11.2.0",
+    "@types/node": "^22.16.5",
+    "chalk": "^5.6.2",
+    "execa": "^9.6.0",
+    "jsdom": "^26.1.0",
+    "rollup": "^4.52.5",
+    "rollup-plugin-dts": "^6.2.3",
+    "shx": "^0.4.0",
+    "size-limit": "^11.2.0",
+    "terser": "^5.44.0",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
   }
 }

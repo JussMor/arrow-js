@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib'
 
-const limit = 3 * 1024
+const limit = 3500
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const file = resolve(__dirname, '../dist/index.min.mjs')

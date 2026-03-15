@@ -1,12 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`html > can conditionally show/remove nodes 1`] = `"<div class=\\"checkout\\"></div>"`;
+exports[`html > can conditionally show/remove nodes 1`] = `"<div class="checkout"></div>"`;
 
-exports[`html > can conditionally show/remove nodes 2`] = `"<div class=\\"checkout\\">Promo: <input type=\\"text\\"></div>"`;
+exports[`html > can conditionally show/remove nodes 2`] = `"<div class="checkout">Promo: <input type="text"></div>"`;
 
-exports[`html > can conditionally show/remove nodes 3`] = `"<div class=\\"checkout\\"></div>"`;
+exports[`html > can conditionally show/remove nodes 3`] = `"<div class="checkout"></div>"`;
 
-exports[`html > can conditionally show/remove nodes 4`] = `"<div class=\\"checkout\\">Promo: <input type=\\"text\\"></div>"`;
+exports[`html > can conditionally show/remove nodes 4`] = `"<div class="checkout">Promo: <input type="text"></div>"`;
 
 exports[`html > can create a table with dynamic columns and rows 1`] = `
 "<table>
@@ -39,25 +39,25 @@ exports[`html > can place expression nested inside some elements inside a string
 `;
 
 exports[`html > can remove and re-add multiple attributes 1`] = `
-"<div data-org=\\"braid\\">
+"<div data-org="braid">
       virginia
     </div>"
 `;
 
 exports[`html > can remove and re-add multiple attributes 2`] = `
-"<div data-org=\\"braid\\" x-precinct=\\"cville\\">
+"<div data-org="braid" x-precinct="cville">
       virginia
     </div>"
 `;
 
 exports[`html > can remove and re-add multiple attributes 3`] = `
-"<div x-precinct=\\"cville\\">
+"<div x-precinct="cville">
       virginia
     </div>"
 `;
 
 exports[`html > can remove and re-add multiple attributes 4`] = `
-"<div x-precinct=\\"cville\\" data-org=\\"other\\">
+"<div x-precinct="cville" data-org="other">
       california
     </div>"
 `;
@@ -130,31 +130,31 @@ exports[`html > can render an empty list, render some items, remove the items, a
 `;
 
 exports[`html > can render nested nodes with attribute expressions 1`] = `
-"<ul data-country=\\"usa\\">
-      <li data-abbr=\\"va\\">virginia</li><li data-abbr=\\"ne\\">nebraska</li><li data-abbr=\\"ca\\">california</li>
-      <li data-first-abbr=\\"va\\">
+"<ul data-country="usa">
+      <li data-abbr="va">virginia</li><li data-abbr="ne">nebraska</li><li data-abbr="ca">california</li>
+      <li data-first-abbr="va">
         virginia
       </li>
     </ul> "
 `;
 
 exports[`html > can render nested nodes with attribute expressions 2`] = `
-"<ul data-country=\\"usa\\">
-      <li data-abbr=\\"ca\\">california</li><li data-abbr=\\"ne\\">nebraska</li><li data-abbr=\\"va\\">virginia</li>
-      <li data-first-abbr=\\"ca\\">
+"<ul data-country="usa">
+      <li data-abbr="ca">california</li><li data-abbr="ne">nebraska</li><li data-abbr="va">virginia</li>
+      <li data-first-abbr="ca">
         california
       </li>
     </ul> "
 `;
 
 exports[`html > can render static expression in an attribute 1`] = `
-"<div data-foo=\\"true\\">
+"<div data-foo="true">
       <h1>Hello world</h1>
     </div>"
 `;
 
 exports[`html > can render static expression in an attribute 2`] = `
-"<div data-foo=\\"true\\">
+"<div data-foo="true">
       <h1>Hello world</h1>
     </div>"
 `;

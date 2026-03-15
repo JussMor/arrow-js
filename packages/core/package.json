@@ -1,0 +1,34 @@
+{
+  "name": "@arrow-js/core",
+  "version": "1.0.0-alpha.9",
+  "description": "Reactivity without the framework.",
+  "author": "Justin Schroeder <justin@wearebraid.com>",
+  "license": "MIT",
+  "main": "dist/index.min.mjs",
+  "module": "dist/index.min.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0 || >=22.12.0"
+  },
+  "size-limit": [
+    {
+      "path": "dist/index.min.mjs",
+      "limit": "3.5 KB",
+      "gzip": true
+    }
+  ],
+  "scripts": {
+    "build:runtime": "node build/pack.mjs && pnpm minify",
+    "build": "node build/pack.mjs && pnpm minify && pnpm size",
+    "size": "node build/size.mjs",
+    "minify": "node build/terser.js"
+  }
+}

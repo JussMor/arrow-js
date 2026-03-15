@@ -1,40 +1,43 @@
+import path from 'node:path'
 import { defineConfig } from 'vite'
-import { dirname, resolve } from 'path'
-import { fileURLToPath } from 'url'
+import { arrow } from '@arrow-js/vite-plugin-arrow'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const clientInputs = {
+  app: path.resolve(__dirname, 'index.html'),
+  benchmarks: path.resolve(__dirname, 'benchmarks/index.html'),
+  benchmarks_creating: path.resolve(__dirname, 'benchmarks/creating.html'),
+  benchmarks_textNodes: path.resolve(__dirname, 'benchmarks/textNodes.html'),
+  demos_calculator: path.resolve(__dirname, 'demos/calculator.html'),
+  demos_carousel: path.resolve(__dirname, 'demos/carousel.html'),
+  demos_component_stability: path.resolve(
+    __dirname,
+    'demos/component-stability.html'
+  ),
+  demos_dropdowns: path.resolve(__dirname, 'demos/dropdowns.html'),
+  demos_fast_text: path.resolve(__dirname, 'demos/fast-text.html'),
+  demos_tabs: path.resolve(__dirname, 'demos/tabs.html'),
+  play: path.resolve(__dirname, 'play/index.html'),
+  play_preview: path.resolve(__dirname, 'play/preview.html'),
+}
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      '@src': resolve(__dirname, '../src'),
-    },
+export default defineConfig(({ isSsrBuild }) => ({
+  plugins: [arrow()],
+  server: {
+    host: '127.0.0.1',
+    port: 4173,
   },
   build: {
-    emptyOutDir: true,
+    outDir: isSsrBuild ? 'dist/server' : 'dist/client',
+    emptyOutDir: !isSsrBuild,
     rollupOptions: {
-      input: {
-        home: resolve(__dirname, 'index.html'),
-        docs: resolve(__dirname, 'docs/index.html'),
-        benchmarks: resolve(__dirname, 'benchmarks/index.html'),
-        benchmarks_creating: resolve(__dirname, 'benchmarks/creating.html'),
-        benchmarks_textNodes: resolve(__dirname, 'benchmarks/textNodes.html'),
-        demos_calculator: resolve(__dirname, 'demos/calculator.html'),
-        demos_carousel: resolve(__dirname, 'demos/carousel.html'),
-        demos_component_stability: resolve(
-          __dirname,
-          'demos/component-stability.html'
-        ),
-        demos_dropdowns: resolve(__dirname, 'demos/dropdowns.html'),
-        demos_fast_text: resolve(__dirname, 'demos/fast-text.html'),
-        demos_tabs: resolve(__dirname, 'demos/tabs.html'),
-        play: resolve(__dirname, 'play/index.html'),
-        play_preview: resolve(__dirname, 'play/preview.html'),
-      },
-      output: {
-        dir: resolve(__dirname, '../public'),
-      },
+      input: isSsrBuild
+        ? path.resolve(__dirname, 'src/entry-server.js')
+        : clientInputs,
+      output: isSsrBuild
+        ? {
+            entryFileNames: 'entry-server.js',
+          }
+        : undefined,
     },
   },
-})
+}))

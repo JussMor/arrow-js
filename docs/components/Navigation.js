@@ -1,21 +1,26 @@
 import { html, reactive } from '@src/index'
-import store from '../store'
 
-export default function () {
+let hasBoundDocumentListener = false
+
+export default function (store) {
   const d = reactive({
     trayIsOpen: false,
   })
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('nav')) {
-      d.trayIsOpen = false
-    }
-  })
+  if (typeof document !== 'undefined' && !hasBoundDocumentListener) {
+    hasBoundDocumentListener = true
+    document.addEventListener('click', (e) => {
+      const target = e.target
+      if (!(target instanceof Element) || !target.closest('nav')) {
+        d.trayIsOpen = false
+      }
+    })
+  }
 
   function makeList(items) {
     return html`<ul>
       ${items.map(
-        (item) => html` <li data-selected="${() => store.section === item.id}">
+        (item) => html`<li data-selected="${() => store.section === item.id}">
           <a href="${`#${item.id}`}">${() => item.title}</a>
           ${item.children && item.children.length && makeList(item.children)}
         </li>`

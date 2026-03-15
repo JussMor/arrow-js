@@ -1,0 +1,423 @@
+import { describe, expect, it, vi } from 'vitest'
+import { component, html, nextTick, reactive } from '@arrow-js/core'
+import { asyncComponent, boundary, render } from '@arrow-js/framework'
+import { hydrate } from '@arrow-js/hydrate'
+import { renderToString } from '@arrow-js/ssr'
+
+function delay(ms = 0) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+describe('framework render', () => {
+  it('waits for async child components to flush', async () => {
+    const root = document.createElement('div')
+    const child = asyncComponent(async () => {
+      await delay()
+      return html`<span>ready</span>`
+    })
+
+    await render(root, html`<div>${child()}</div>`)
+
+    expect(root.innerHTML).toContain('<span>ready</span>')
+  })
+
+  it('waits for nested async child components to flush', async () => {
+    const root = document.createElement('div')
+    const grandChild = asyncComponent(async () => {
+      await delay()
+      return html`<em>nested ready</em>`
+    })
+    const child = asyncComponent(async () => {
+      await delay()
+      return html`<div>${grandChild()}</div>`
+    })
+
+    await render(root, html`<section>${child()}</section>`)
+
+    expect(root.innerHTML).toContain('nested ready')
+  })
+})
+
+describe('framework ssr', () => {
+  it('serializes resolved async content', async () => {
+    const child = asyncComponent(async () => {
+      await delay()
+      return html`<span>server ready</span>`
+    })
+
+    const result = await renderToString(html`<div>${child()}</div>`)
+
+    expect(result.html).toContain('server ready')
+    expect(result.payload.html).toBe(result.html)
+  })
+
+  it('emits explicit boundary markers and payload manifests', async () => {
+    const result = await renderToString(
+      html`<main>${boundary(html`<p id="marker-probe">probe</p>`, { idPrefix: 'probe' })}</main>`
+    )
+
+    expect(result.html).toContain('data-arrow-boundary-start="probe:0"')
+    expect(result.html).toContain('data-arrow-boundary-end="probe:0"')
+    expect(result.payload.boundaries).toEqual(['probe:0'])
+  })
+
+  it('keeps nested async SSR isolated across concurrent renders', async () => {
+    const GrandChild = asyncComponent<{ label: string }, string>(
+      async ({ label }: { label: string }) => {
+        await delay()
+        return label
+      },
+      {
+        render: (value) => html`<strong>${value}</strong>`,
+      }
+    )
+    const Child = asyncComponent<{ label: string }, string>(
+      async ({ label }: { label: string }) => {
+        await delay()
+        return label
+      },
+      {
+        render: (value) => html`<section>${GrandChild({ label: `${value} ready` })}</section>`,
+      }
+    )
+
+    const labels = Array.from({ length: 8 }, (_, index) => `request-${index}`)
+    const results = await Promise.all(
+      labels.map((label) => renderToString(html`<div>${Child({ label })}</div>`))
+    )
+
+    results.forEach((result, index) => {
+      expect(result.html).toContain(`${labels[index]} ready`)
+    })
+  })
+})
+
+describe('framework hydrate', () => {
+  it('adopts existing server-rendered nodes when markup matches', async () => {
+    const root = document.createElement('div')
+    const Counter = component(() => {
+      const state = reactive({
+        clicks: 0,
+      })
+
+      return html`<button
+        id="probe"
+        @click="${() => {
+          state.clicks += 1
+        }}"
+      >
+        Clicks: ${() => state.clicks}
+      </button>`
+    })
+
+    const createView = () => html`${Counter()}`
+    const ssr = await renderToString(createView())
+    root.innerHTML = ssr.html
+    const existing = root.querySelector('#probe')
+
+    const result = await hydrate(root, createView(), ssr.payload)
+
+    expect(result.adopted).toBe(true)
+    expect(root.querySelector('#probe')).toBe(existing)
+
+    ;(existing as HTMLButtonElement).click()
+    await nextTick()
+
+    expect(root.querySelector('#probe')?.textContent).toContain('Clicks: 1')
+  })
+
+  it('preserves component-local state when a hydrated parent rerenders', async () => {
+    const root = document.createElement('div')
+
+    const Counter = component(() => {
+      const state = reactive({
+        clicks: 0,
+      })
+
+      return html`<button
+        id="component-probe"
+        @click="${() => {
+          state.clicks += 1
+        }}"
+      >
+        Count: ${() => state.clicks}
+      </button>`
+    })
+
+    const Shell = component(() => {
+      const shell = reactive({
+        mode: 'steady',
+      })
+
+      return html`<section data-mode="${() => shell.mode}">
+        ${Counter()}
+        <button
+          id="component-shell"
+          @click="${() => {
+            shell.mode = shell.mode === 'steady' ? 'alt' : 'steady'
+          }}"
+        >
+          Toggle shell
+        </button>
+      </section>`
+    })
+
+    const createView = () => html`${Shell()}`
+    const ssr = await renderToString(createView())
+    root.innerHTML = ssr.html
+    const existing = root.querySelector('#component-probe')
+
+    const result = await hydrate(root, createView(), ssr.payload)
+
+    expect(result.adopted).toBe(true)
+    ;(existing as HTMLButtonElement).click()
+    await nextTick()
+    ;(root.querySelector('#component-shell') as HTMLButtonElement).click()
+    await nextTick()
+
+    expect(root.querySelector('#component-probe')).toBe(existing)
+    expect(root.querySelector('#component-probe')?.textContent).toContain('Count: 1')
+  })
+
+  it('hydrates resolved async child content without replacing matching nodes', async () => {
+    const root = document.createElement('div')
+    const state = reactive({
+      clicks: 0,
+    })
+    const AsyncCounter = asyncComponent(async () => {
+      await delay()
+      return html`<button
+        id="async-probe"
+        @click="${() => {
+          state.clicks += 1
+        }}"
+      >
+        Async clicks: ${() => state.clicks}
+      </button>`
+    })
+
+    const createView = () => html`<section>${AsyncCounter()}</section>`
+    const ssr = await renderToString(createView())
+    root.innerHTML = ssr.html
+    const existing = root.querySelector('#async-probe')
+
+    const result = await hydrate(root, createView(), ssr.payload)
+
+    expect(result.adopted).toBe(true)
+    expect(root.querySelector('#async-probe')).toBe(existing)
+
+    ;(existing as HTMLButtonElement).click()
+    await nextTick()
+
+    expect(root.querySelector('#async-probe')?.textContent).toContain(
+      'Async clicks: 1'
+    )
+  })
+
+  it('hydrates deeply nested serialized async request results without refetching', async () => {
+    const root = document.createElement('div')
+    const createView = (
+      request: (resource: string) => Promise<{ resource: string; message: string }>
+    ) => {
+      const AsyncLeaf = asyncComponent<
+        { resource: string },
+        { resource: string; message: string },
+        { resource: string; message: string }
+      >(
+        async ({ resource }: { resource: string }) => request(resource),
+        {
+          serialize: (value) => value,
+          deserialize: (snapshot) => snapshot,
+          render: (value) => html`<strong id="serialized-request">${value.message}</strong>`,
+        }
+      )
+
+      const Inner = component(
+        () => html`<article>${AsyncLeaf({ resource: 'guide' })}</article>`
+      )
+      const Middle = component(() => html`<section>${Inner()}</section>`)
+      const Outer = component(() => html`<div>${Middle()}</div>`)
+
+      return html`${Outer()}`
+    }
+    const serverRequest = vi.fn(async (resource: string) => {
+      await delay()
+      return {
+        resource,
+        message: `Loaded ${resource}`,
+      }
+    })
+    const clientRequest = vi.fn(async (resource: string) => {
+      await delay()
+      return {
+        resource,
+        message: `Client loaded ${resource}`,
+      }
+    })
+
+    const ssr = await renderToString(createView(serverRequest))
+
+    expect(serverRequest).toHaveBeenCalledTimes(1)
+    expect(ssr.html).toContain('Loaded guide')
+    expect(Object.values(ssr.payload.async)).toContainEqual({
+      resource: 'guide',
+      message: 'Loaded guide',
+    })
+
+    root.innerHTML = ssr.html
+    const existing = root.querySelector('#serialized-request')
+
+    const result = await hydrate(root, createView(clientRequest), ssr.payload)
+
+    expect(result.adopted).toBe(true)
+    expect(clientRequest).not.toHaveBeenCalled()
+    expect(root.querySelector('#serialized-request')).toBe(existing)
+    expect(root.querySelector('#serialized-request')?.textContent).toBe('Loaded guide')
+  })
+
+  it('repairs a missing middle subtree without remounting later components', async () => {
+    const root = document.createElement('div')
+
+    const Tail = component(() => {
+      const state = reactive({
+        clicks: 0,
+      })
+
+      return html`<button
+        id="tail-probe"
+        @click="${() => {
+          state.clicks += 1
+        }}"
+      >
+        Tail: ${() => state.clicks}
+      </button>`
+    })
+
+    const createView = () => html`<section>
+      <p id="first-copy">first</p>
+      <p id="middle-copy">middle</p>
+      ${Tail()}
+    </section>`
+
+    const ssr = await renderToString(createView())
+    root.innerHTML = ssr.html
+
+    const existingTail = root.querySelector('#tail-probe')
+    const existingSection = root.firstElementChild
+    root.querySelector('#middle-copy')?.remove()
+
+    const onMismatch = vi.fn()
+    const result = await hydrate(root, createView(), ssr.payload, { onMismatch })
+
+    expect(result.adopted).toBe(true)
+    expect(result.mismatches).toBeGreaterThan(0)
+    expect(onMismatch).toHaveBeenCalledOnce()
+    expect(onMismatch.mock.calls[0]?.[0]).toMatchObject({
+      repaired: true,
+    })
+    expect(root.firstElementChild).toBe(existingSection)
+    expect(root.querySelector('#tail-probe')).toBe(existingTail)
+    expect(root.querySelector('#middle-copy')?.textContent).toContain('middle')
+
+    ;(existingTail as HTMLButtonElement).click()
+    await nextTick()
+
+    expect(root.querySelector('#tail-probe')?.textContent).toContain('Tail: 1')
+  })
+
+  it('falls back to mismatched boundaries without remounting intact neighbors', async () => {
+    const root = document.createElement('div')
+
+    const Counter = component(() => {
+      const state = reactive({
+        clicks: 0,
+      })
+
+      return html`<button
+        id="boundary-counter"
+        @click="${() => {
+          state.clicks += 1
+        }}"
+      >
+        Boundary clicks: ${() => state.clicks}
+      </button>`
+    })
+
+    const createView = () => html`<main>
+      ${boundary(html`<section id="fragile">original</section>`, {
+        idPrefix: 'fragile',
+      })}
+      ${boundary(Counter(), { idPrefix: 'stable' })}
+    </main>`
+
+    const ssr = await renderToString(createView())
+    root.innerHTML = ssr.html
+
+    const existingMain = root.firstElementChild
+    const onMismatch = vi.fn()
+
+    root.querySelector('#fragile')?.replaceWith(document.createElement('aside'))
+
+    const replaceChild = vi
+      .spyOn(Element.prototype, 'replaceChild')
+      .mockImplementation(function (this: Element, newChild: Node, oldChild: Node) {
+        if (this === existingMain) {
+          throw new Error('force boundary fallback')
+        }
+        return Node.prototype.replaceChild.call(this, newChild, oldChild)
+      })
+
+    const result = await hydrate(root, createView(), ssr.payload, { onMismatch })
+
+    replaceChild.mockRestore()
+
+    expect(result.adopted).toBe(false)
+    expect(result.boundaryFallbacks).toBe(2)
+    expect(root.firstElementChild).toBe(existingMain)
+    expect(root.querySelector('#fragile')?.textContent).toContain('original')
+
+    ;(root.querySelector('#boundary-counter') as HTMLButtonElement).click()
+    await nextTick()
+
+    expect(root.querySelector('#boundary-counter')?.textContent).toContain(
+      'Boundary clicks: 1'
+    )
+    expect(onMismatch).toHaveBeenCalledOnce()
+    expect(onMismatch.mock.calls[0]?.[0]).toMatchObject({
+      repaired: true,
+      boundaryFallbacks: 2,
+    })
+  })
+
+  it('invokes root fallback when subtree repair throws', async () => {
+    const root = document.createElement('div')
+    root.innerHTML = '<p>server</p>'
+    const existing = root.firstChild
+
+    const onMismatch = vi.fn()
+    const replaceChild = vi
+      .spyOn(Element.prototype, 'replaceChild')
+      .mockImplementation(() => {
+        throw new Error('repair failed')
+      })
+
+    const result = await hydrate(
+      root,
+      html`<p>client</p>`,
+      { html: '<p>different</p>' },
+      { onMismatch }
+    )
+
+    replaceChild.mockRestore()
+
+    expect(result.adopted).toBe(false)
+    expect(onMismatch).toHaveBeenCalledOnce()
+    expect(onMismatch.mock.calls[0]?.[0]).toMatchObject({
+      repaired: false,
+    })
+    expect(root.innerHTML).toContain('client')
+    expect(root.firstChild).not.toBe(existing)
+  })
+})

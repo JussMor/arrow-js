@@ -1,6 +1,8 @@
-import store from '../store'
+export default function (store) {
+  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+    return
+  }
 
-export default function () {
   const visibleSections = new Set()
 
   const observer = new window.IntersectionObserver(

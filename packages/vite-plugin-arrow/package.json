@@ -1,0 +1,8 @@
+{
+  "name": "@arrow-js/vite-plugin-arrow",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

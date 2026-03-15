@@ -222,6 +222,25 @@ body {
   height: 1em;
 }
 
+#theme-toggle {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-link-social-icon);
+  cursor: pointer;
+}
+
+#theme-toggle:hover {
+  color: var(--c-link-text-hover);
+}
+
+#theme-toggle:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
 [data-theme="light"] #theme-toggle .dark-mode {
   display: none;
 }
@@ -298,6 +317,9 @@ ul li img {
 }
 .social-links li a:hover {
   color: var(--c-link-text-hover);
+}
+.social-links li .github-button {
+  line-height: 1;
 }
 .social-links li,
 .social-links li svg {

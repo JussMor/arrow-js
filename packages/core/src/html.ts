@@ -178,9 +178,16 @@ export interface Chunk {
    * The stable source box used to update component props without rerunning the factory.
    */
   s?: ReturnType<typeof createPropsProxy>[1]
+  /**
+   * Hydration hooks used to adopt live DOM nodes after SSR.
+   */
+  _h?: HydrationHook[]
 }
 
-type ChunkProto = Pick<Chunk, 'dom' | 'paths'>
+interface ChunkProto {
+  readonly html: string
+  readonly paths: Chunk['paths']
+}
 
 /**
  * A reference to the DOM elements mounted by a chunk.
@@ -188,7 +195,18 @@ type ChunkProto = Pick<Chunk, 'dom' | 'paths'>
 interface DOMRef {
   f: ChildNode | null
   l: ChildNode | null
+  adopt: (map: NodeMap) => void
 }
+
+interface HydrationHook {
+  adopt: (map: NodeMap, visited: WeakSet<Chunk>) => void
+}
+
+interface NodeTarget<T extends ChildNode = ChildNode> {
+  node: T
+}
+
+type NodeMap = WeakMap<Node, Node>
 
 /**
  * A mutable stack of bindings used to create reactive expressions. We
@@ -211,9 +229,23 @@ const delimiterComment = `<!--${delimiter}-->`
 const chunkMemo: Record<string, ChunkProto> = {}
 
 type Rendered = Chunk | Text
+type RenderController = ((
+  renderable: ArrowRenderable
+) => DocumentFragment | Text | void) & {
+  adopt: (map: NodeMap, visited: WeakSet<Chunk>) => void
+}
 type InternalTemplate = ArrowTemplate & {
   d?: () => void
   x?: () => void
+}
+
+function registerHydrationHook(chunk: Chunk, hook: HydrationHook) {
+  chunk._h ??= []
+  chunk._h.push(hook)
+}
+
+function createNodeTarget<T extends ChildNode>(node: T): NodeTarget<T> {
+  return { node }
 }
 
 function moveDOMRef(
@@ -368,17 +400,38 @@ function createNodeBinding(
   const expression = expressionPool[expressionPointer]
   if (isCmp(expression) || isTpl(expression) || Array.isArray(expression)) {
     // We are dealing with a template that is not reactive. Render it.
-    fragment = createRenderFn()(expression)!
+    const render = createRenderFn()
+    fragment = render(expression)!
+    registerHydrationHook(parentChunk, {
+      adopt(map, visited) {
+        render.adopt(map, visited)
+      },
+    })
   } else if (typeof expression === 'function') {
-    const [frag, stop] = watch(expressionPointer, createRenderFn())
+    const render = createRenderFn()
+    const [frag, stop] = watch(expressionPointer, render)
     ;(parentChunk.u ??= []).push(stop)
     fragment = frag!
+    registerHydrationHook(parentChunk, {
+      adopt(map, visited) {
+        render.adopt(map, visited)
+      },
+    })
   } else {
-    fragment = document.createTextNode(renderText(expression))
+    const target = createNodeTarget(document.createTextNode(renderText(expression)))
+    fragment = target.node
     onExpressionUpdate(
       expressionPointer,
-      (value: string) => (fragment.nodeValue = renderText(value))
+      (value: string) => (target.node.nodeValue = renderText(value))
     )
+    registerHydrationHook(parentChunk, {
+      adopt(map) {
+        const adopted = map.get(target.node)
+        if (adopted) {
+          target.node = adopted as Text
+        }
+      },
+    })
   }
   if (node === parentChunk.ref.f || node === parentChunk.ref.l) {
     const last = fragment.nodeType === 11
@@ -407,24 +460,43 @@ function createAttrBinding(
   parentChunk: Chunk
 ) {
   if (node.nodeType !== 1) return
-  const el = node as Element
+  const target = createNodeTarget(node as Element)
   const expression = expressionPool[expressionPointer]
   if (attrName[0] === '@') {
-    el.addEventListener(
-      attrName.slice(1),
-      (evt) => (expressionPool[expressionPointer] as CallableFunction)?.(evt),
+    const event = attrName.slice(1)
+    const listener = (evt: Event) =>
+      (expressionPool[expressionPointer] as CallableFunction)?.(evt)
+    target.node.addEventListener(event, listener)
+    target.node.removeAttribute(attrName)
+    ;(parentChunk.u ??= []).push(() =>
+      target.node.removeEventListener(event, listener)
     )
-    el.removeAttribute(attrName)
+    registerHydrationHook(parentChunk, {
+      adopt(map) {
+        const adopted = map.get(target.node)
+        if (!adopted) return
+        target.node.removeEventListener(event, listener)
+        target.node = adopted as Element
+        target.node.addEventListener(event, listener)
+        target.node.removeAttribute(attrName)
+      },
+    })
   } else if (typeof expression === 'function' && !isTpl(expression)) {
     // We are dealing with a reactive expression so perform watch binding.
     const [, stop] = watch(expressionPointer, (value) =>
-      setAttr(el, attrName, value as string)
+      setAttr(target.node, attrName, value as string)
     )
     ;(parentChunk.u ??= []).push(stop)
+    registerHydrationHook(parentChunk, {
+      adopt(map) {
+        const adopted = map.get(target.node)
+        if (adopted) target.node = adopted as Element
+      },
+    })
   } else {
-    setAttr(el, attrName, expression as string | number | boolean | null)
+    setAttr(target.node, attrName, expression as string | number | boolean | null)
     onExpressionUpdate(expressionPointer, (value: string) =>
-      setAttr(el, attrName, value)
+      setAttr(target.node, attrName, value)
     )
   }
 }
@@ -433,14 +505,12 @@ function createAttrBinding(
  *
  * @param parentChunk - The parent chunk that contains the node.
  */
-function createRenderFn(): (
-  renderable: ArrowRenderable
-) => DocumentFragment | Text | void {
+function createRenderFn(): RenderController {
   let previous: Chunk | Text | Rendered[]
   const keyedChunks: Record<Exclude<ArrowTemplateKey, undefined>, Chunk> = {}
   let updaterFrag: DocumentFragment | null = null
 
-  return function render(
+  const render = function render(
     renderable: ArrowRenderable
   ): DocumentFragment | Text | void {
     if (!previous) {
@@ -687,6 +757,15 @@ function createRenderFn(): (
     chunk.k = renderable.k
     return [fragment, chunk]
   }
+
+  render.adopt = (map: NodeMap, visited: WeakSet<Chunk>) => {
+    previous = adoptRenderedValue(previous, map, visited) as
+      | Chunk
+      | Text
+      | Rendered[]
+  }
+
+  return render
 }
 
 let unmountStack: Array<
@@ -784,6 +863,33 @@ function getNode(
   return chunk!
 }
 
+function adoptRenderedValue(
+  value: Chunk | Text | Rendered[] | undefined,
+  map: NodeMap,
+  visited: WeakSet<Chunk>
+): Chunk | Text | Rendered[] | undefined {
+  if (!value) return value
+  if (isChunk(value)) {
+    adoptChunk(value, map, visited)
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => adoptRenderedValue(item, map, visited)) as Rendered[]
+  }
+  return (map.get(value) as Text | undefined) ?? value
+}
+
+export function adoptChunk(
+  chunk: Chunk,
+  map: WeakMap<Node, Node>,
+  visited: WeakSet<Chunk>
+) {
+  if (visited.has(chunk)) return
+  visited.add(chunk)
+  chunk.ref.adopt(map)
+  chunk._h?.forEach((hook) => hook.adopt(map, visited))
+}
+
 /**
  * Creates a new Chunk object and memoizes it.
  * @param rawStrings - Initialize the chunk and memoize it.
@@ -800,22 +906,28 @@ export function createChunk(
   rawStrings: TemplateStringsArray | string[]
 ): Omit<Chunk, 'ref'> & { ref: DOMRef } {
   const memoKey = rawStrings.join(delimiterComment)
-  const chunk: ChunkProto =
+  const memoized: ChunkProto =
     chunkMemo[memoKey] ??
     (() => {
       const tpl = document.createElement('template')
       tpl.innerHTML = memoKey
       return (chunkMemo[memoKey] = {
-        dom: tpl.content,
+        html: memoKey,
         paths: createPaths(tpl.content),
       })
     })()
-  const dom = chunk.dom.cloneNode(true) as DocumentFragment
-  const instance = Object.create(chunk) as Omit<Chunk, 'ref'> & { ref: DOMRef }
+  const tpl = document.createElement('template')
+  tpl.innerHTML = memoized.html
+  const dom = tpl.content
+  const instance = Object.create(memoized) as Omit<Chunk, 'ref'> & { ref: DOMRef }
   instance.dom = dom
   instance.ref = {
     f: dom.firstChild as ChildNode | null,
     l: dom.lastChild as ChildNode | null,
+    adopt(map) {
+      if (this.f) this.f = (map.get(this.f) as ChildNode | undefined) ?? this.f
+      if (this.l) this.l = (map.get(this.l) as ChildNode | undefined) ?? this.l
+    },
   }
   return instance
 }

@@ -21,4 +21,4 @@ export type { ArrowTemplate } from './html'
 
 export type { Props } from './component'
 
-export type { Reactive } from './reactive'
+export type { Reactive, ReactiveTarget } from './reactive'
