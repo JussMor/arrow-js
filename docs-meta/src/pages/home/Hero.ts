@@ -2,6 +2,12 @@ import { html, reactive } from '@arrow-js/core'
 
 const heroData = reactive({ count: 0 })
 
+function scrollToDocs(e: Event) {
+  e.preventDefault()
+  const el = document.getElementById('what-is-arrow')
+  if (el) el.scrollIntoView({ behavior: 'smooth' })
+}
+
 export function Hero() {
   return html`
     <section class="relative min-h-[92vh] flex flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
@@ -39,7 +45,8 @@ export function Hero() {
 
         <div class="mt-8 md:mt-10 flex flex-wrap gap-4 justify-center">
           <a
-            href="/docs"
+            href="#what-is-arrow"
+            @click="${scrollToDocs}"
             class="px-7 py-3 bg-arrow-500 text-zinc-950 font-semibold rounded-lg hover:bg-arrow-400 transition-all hover:shadow-lg hover:shadow-arrow-500/20 text-sm"
           >
             Get Started
@@ -68,19 +75,22 @@ export function Hero() {
               <div class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></div>
             </div>
             <span class="ml-2 text-xs text-zinc-400 dark:text-zinc-600 font-mono">
-              app.js
+              counter.ts
             </span>
           </div>
           <div class="hero-code">
-            <pre><code class="language-js">import { html, reactive } from '@arrow-js/core'
+            <pre><code class="language-ts">import { component, html, reactive } from '@arrow-js/core'
 
-const data = reactive({ count: 0 })
+const Counter = component(() =&gt; {
+  const data = reactive({ count: 0 })
+  return html&#96;
+    &lt;button @click="&#36;{() =&gt; data.count++}"&gt;
+      Clicked &#36;{() =&gt; data.count} times
+    &lt;/button&gt;
+  &#96;
+})
 
-html&#96;
-  &lt;button @click="&#36;{() =&gt; data.count++}"&gt;
-    Clicked &#36;{() =&gt; data.count} times
-  &lt;/button&gt;
-&#96;(document.body)</code></pre>
+html&#96;&#36;{Counter()}&#96;(document.body)</code></pre>
           </div>
           <div
             class="border-t border-zinc-200 dark:border-zinc-800 px-5 py-4"

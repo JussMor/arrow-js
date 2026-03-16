@@ -36,6 +36,10 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+section[id] {
+  scroll-margin-top: 6rem;
+}
+
 ::selection {
   background-color: var(--color-arrow-500);
   color: #000;
