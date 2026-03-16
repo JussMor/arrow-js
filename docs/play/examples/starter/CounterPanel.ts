@@ -1,32 +1,28 @@
 import { component, html, reactive } from '@arrow-js/core'
 
 export const CounterPanel = component((props: { model: { count: number } }) => {
-  const local = reactive({ presses: 0 })
+  const local = reactive({ count: 0 })
 
-  const press = (delta: number) => {
-    props.model.count += delta
-    local.presses++
-  }
-
-  const reset = () => {
-    props.model.count = 0
-  }
-
-  return html`<section class="panel">
-    <div class="panel-stats">
-      <div class="panel-stat">
-        <span class="panel-label">Shared count</span>
-        <span class="panel-value">${() => props.model.count}</span>
+  return html`<div class="counter">
+    <div class="gauges">
+      <div class="gauge">
+        <span class="gauge-label">App state</span>
+        <span class="gauge-value">${() => props.model.count}</span>
+        <div class="gauge-actions">
+          <button class="btn btn--amber btn--sm" @click="${() => props.model.count--}">−</button>
+          <button class="btn btn--amber btn--sm" @click="${() => props.model.count++}">+</button>
+        </div>
+        <span class="gauge-hint">Visible to other components</span>
       </div>
-      <div class="panel-stat">
-        <span class="panel-label">Local presses</span>
-        <span class="panel-value panel-value--local">${() => local.presses}</span>
+      <div class="gauge gauge--local">
+        <span class="gauge-label">Component state</span>
+        <span class="gauge-value">${() => local.count}</span>
+        <div class="gauge-actions">
+          <button class="btn btn--local btn--sm" @click="${() => local.count--}">−</button>
+          <button class="btn btn--local btn--sm" @click="${() => local.count++}">+</button>
+        </div>
+        <span class="gauge-hint">Private to this component</span>
       </div>
     </div>
-    <div class="panel-actions">
-      <button class="btn" @click="${() => press(-1)}">−</button>
-      <button class="btn" @click="${() => press(1)}">+</button>
-      <button class="btn btn--ghost" @click="${reset}">Reset</button>
-    </div>
-  </section>`
+  </div>`
 })

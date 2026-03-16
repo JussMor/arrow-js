@@ -11,29 +11,31 @@ export const App = component(() => {
     state.name = (e.target as HTMLInputElement).value
   }
 
-  return html`<main class="app">
-    <header class="hero">
-      <p class="eyebrow">Arrow Playground</p>
-      <h1>Hello, <span class="accent">${() => state.name || 'World'}</span></h1>
-      <p class="subtitle">
-        Type below and watch reactive state update everywhere at once.
-      </p>
-      <input
-        class="name-input"
-        type="text"
-        placeholder="Your name"
-        @input="${handleInput}"
-      />
-    </header>
+  return html`<div class="app">
+    <div class="card">
+      <div class="card-header">
+        <h1 class="greeting">
+          Hello, <span class="name">${() => state.name || 'World'}</span>
+        </h1>
+        <label class="input-label" for="name-input">Name</label>
+        <input
+          id="name-input"
+          class="input-field"
+          type="text"
+          placeholder="Type a name…"
+          .value="${state.name}"
+          @input="${handleInput}"
+        />
+      </div>
 
-    ${CounterPanel({ model: state })}
+      <div class="divider"></div>
 
-    <footer class="info">
-      <p>
-        <strong>${() => state.name || 'World'}</strong> has clicked
-        <strong>${() => state.count}</strong> times.
-        Edit any file to experiment.
-      </p>
-    </footer>
-  </main>`
+      ${CounterPanel({ model: state })}
+
+      <div class="card-footer">
+        <strong>${() => state.name || 'World'}</strong> has
+        <strong>${() => state.count}</strong> points — this reads app state.
+      </div>
+    </div>
+  </div>`
 })

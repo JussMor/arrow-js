@@ -17,15 +17,15 @@ const WelcomeCard = component(async () => {
 
 const state = reactive({ count: 2 })
 
-export const App = component(() =>
-  html\`<main>
+export function createApp() {
+  return html\`<main>
     <h1>Arrow + Vite 8</h1>
     <button @click="\${() => state.count++}">
       Count \${() => state.count}
     </button>
     \${boundary(WelcomeCard())}
   </main>\`
-)`,
+}`,
 
   server: `import { renderToString, serializePayload } from '@arrow-js/ssr'
 

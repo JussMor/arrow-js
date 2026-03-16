@@ -207,7 +207,10 @@ export function HtmlApi() {
           Signature
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">function html(
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+type ArrowExpression = unknown
+
+function html(
   strings: TemplateStringsArray,
   ...expSlots: ArrowExpression[]
 ): ArrowTemplate</code></pre>
@@ -343,7 +346,14 @@ export function ComponentApi() {
           Signatures
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">// Sync — no props
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+type ReactiveTarget = Record&lt;PropertyKey, unknown&gt; | unknown[]
+type Props&lt;T extends ReactiveTarget&gt; = T
+type AsyncComponentOptions&lt;TProps, TValue, TSnapshot = TValue&gt; = unknown
+type Component = unknown
+type ComponentWithProps&lt;T&gt; = unknown
+
+// Sync — no props
 function component(
   factory: () =&gt; ArrowTemplate
 ): Component
@@ -599,7 +609,9 @@ export function RenderApi() {
           RenderResult
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">interface RenderResult {
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+
+interface RenderResult {
   root: ParentNode
   template: ArrowTemplate
   payload: RenderPayload
@@ -648,7 +660,9 @@ export function BoundaryApi() {
           Signature
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">function boundary(
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+
+function boundary(
   view: unknown,
   options?: BoundaryOptions
 ): ArrowTemplate
@@ -716,7 +730,9 @@ export function ToTemplateApi() {
           Signature
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">function toTemplate(view: unknown): ArrowTemplate</code></pre>
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+
+function toTemplate(view: unknown): ArrowTemplate</code></pre>
         </div>
 
         <h3
@@ -895,11 +911,13 @@ export function SerializePayloadApi() {
         </p>
 
         <div class="code-block">
-          <pre><code class="language-ts">const script = serializePayload(payload)
+          <pre><code class="language-ts">const payload = { rootId: 'app', async: {}, boundaries: [] }
+
+const defaultScript = serializePayload(payload)
 // &lt;script id="arrow-ssr-payload" type="application/json"&gt;{...}&lt;/script&gt;
 
 // Custom id
-const script = serializePayload(payload, 'my-payload')
+const customScript = serializePayload(payload, 'my-payload')
 // &lt;script id="my-payload" type="application/json"&gt;{...}&lt;/script&gt;</code></pre>
         </div>
 
@@ -968,7 +986,10 @@ interface HydrationMismatchDetails {
           HydrationResult
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">interface HydrationResult {
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+type RenderPayload = unknown
+
+interface HydrationResult {
   root: ParentNode
   template: ArrowTemplate
   payload: RenderPayload
@@ -1047,7 +1068,10 @@ export function ReadPayloadApi() {
 const payload = readPayload()
 
 // Custom document and id
-const payload = readPayload(iframe.contentDocument, 'my-payload')</code></pre>
+const iframe = document.querySelector('iframe')
+const payloadFromFrame = iframe?.contentDocument
+  ? readPayload(iframe.contentDocument, 'my-payload')
+  : null</code></pre>
         </div>
       </div>
     </section>
@@ -1074,7 +1098,15 @@ export function TypesReference() {
           @arrow-js/core
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">// The template function returned by html\`...\`
+          <pre><code class="language-ts">type ArrowTemplateKey = string | number | undefined
+type ReactiveTarget = Record&lt;PropertyKey, unknown&gt; | unknown[]
+type PropertyObserver&lt;T&gt; = (newValue?: T, oldValue?: T) =&gt; void
+
+interface ComponentCall {
+  key(key: ArrowTemplateKey): ComponentCall
+}
+
+// The template function returned by html\`...\`
 interface ArrowTemplate {
   (parent: ParentNode): ParentNode
   (): DocumentFragment
@@ -1097,14 +1129,8 @@ type Reactive&lt;T extends ReactiveTarget&gt; = T &amp; {
 // Computed value wrapper
 type Computed&lt;T&gt; = Readonly&lt;Reactive&lt;{ value: T }&gt;&gt;
 
-// Constraint for reactive() input — objects or arrays
-type ReactiveTarget = Record&lt;PropertyKey, unknown&gt; | unknown[]
-
-// Observer callback for $on/$off
-type PropertyObserver&lt;T&gt; = (newValue?: T, oldValue?: T) =&gt; void
-
 // Component prop types
-type Props&lt;T extends ReactiveTarget&gt; = /* mapped reactive proxy */
+type Props&lt;T extends ReactiveTarget&gt; = T
 
 // Component types
 interface Component {
@@ -1121,7 +1147,9 @@ interface ComponentWithProps&lt;T extends ReactiveTarget&gt; {
           @arrow-js/framework
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">interface RenderOptions {
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+
+interface RenderOptions {
   clear?: boolean
   hydrationSnapshots?: Record&lt;string, unknown&gt;
 }
@@ -1177,7 +1205,10 @@ interface HydrationPayload {
           @arrow-js/hydrate
         </h3>
         <div class="code-block">
-          <pre><code class="language-ts">interface HydrationOptions {
+          <pre><code class="language-ts">type ArrowTemplate = unknown
+type RenderPayload = unknown
+
+interface HydrationOptions {
   onMismatch?: (details: HydrationMismatchDetails) =&gt; void
 }
 

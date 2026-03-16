@@ -1,4 +1,9 @@
 import { html } from '@arrow-js/core'
+import {
+  docsExampleMeta,
+  playgroundExampleHref,
+  starterExampleId,
+} from '../../../play/example-meta.js'
 
 /**
  * All docs content sections. Each is a plain function — no local state needed
@@ -430,7 +435,11 @@ watch(() =&gt; {
 
         <p>Getter plus effect form:</p>
         <div class="code-block">
-          <pre><code class="language-ts">watch(
+          <pre><code class="language-ts">import { reactive, watch } from '@arrow-js/core'
+
+const data = reactive({ price: 25, quantity: 10, logTotal: true })
+
+watch(
   () =&gt; data.logTotal ? data.price * data.quantity : null,
   (total) =&gt; total !== null && console.log(\`Total: \${total}\`)
 )</code></pre>
@@ -519,7 +528,9 @@ export function Templates() {
           <code>@eventName</code> attaches an event listener.
         </p>
         <div class="code-block">
-          <pre><code class="language-ts">html\`&lt;button @click="\${(e) =&gt; console.log(e)}"&gt;Click&lt;/button&gt;\`</code></pre>
+          <pre><code class="language-ts">import { html } from '@arrow-js/core'
+
+html\`&lt;button @click="\${(e) =&gt; console.log(e)}"&gt;Click&lt;/button&gt;\`</code></pre>
         </div>
       </div>
     </section>
@@ -636,9 +647,6 @@ export function ServerRendering() {
   `
 }
 
-const examplesBaseUrl =
-  'https://github.com/justin-schroeder/arrow-js/tree/master/docs/play/examples'
-
 interface ExampleEntry {
   id: string
   title: string
@@ -646,54 +654,7 @@ interface ExampleEntry {
   sourceUrl?: string
 }
 
-const examples: ExampleEntry[] = [
-  {
-    id: 'todo',
-    title: 'Todo List',
-    description:
-      'A task tracker with reactive arrays, keyed lists, and computed filtering.',
-    sourceUrl: `${examplesBaseUrl}/todo`,
-  },
-  {
-    id: 'timer',
-    title: 'Pomodoro Timer',
-    description:
-      'A focus timer with SVG progress ring, intervals, and computed formatting.',
-    sourceUrl: `${examplesBaseUrl}/timer`,
-  },
-  {
-    id: 'palette',
-    title: 'Color Palette',
-    description:
-      'A Coolors-style harmony palette generator with reactive style binding and computed colors.',
-    sourceUrl: `${examplesBaseUrl}/palette`,
-  },
-  {
-    id: 'password',
-    title: 'Password Generator',
-    description:
-      'A configurable password tool with reactive toggles and a strength meter.',
-    sourceUrl: `${examplesBaseUrl}/password`,
-  },
-  {
-    id: 'accordion',
-    title: 'Accordion',
-    description:
-      'Expandable FAQ sections where each component instance keeps its own state.',
-    sourceUrl: `${examplesBaseUrl}/accordion`,
-  },
-  {
-    id: 'feed',
-    title: 'Live Feed',
-    description:
-      'An auto-updating event feed with reactive array mutations and timed entries.',
-    sourceUrl: `${examplesBaseUrl}/feed`,
-  },
-]
-
-function playgroundHref(id: string) {
-  return `/play/?example=${encodeURIComponent(id)}`
-}
+const examples = docsExampleMeta as ExampleEntry[]
 
 export function Examples() {
   return html`
@@ -723,7 +684,7 @@ export function Examples() {
                 </p>
                 <div class="flex items-center gap-4 text-sm">
                   <a
-                    href="${playgroundHref(entry.id)}"
+                    href="${playgroundExampleHref(entry.id)}"
                     class="text-arrow-600 dark:text-arrow-400 font-medium hover:underline underline-offset-2"
                   >
                     Open in Playground
@@ -743,6 +704,21 @@ export function Examples() {
             `
           )}
         </div>
+
+        <a
+          href="${playgroundExampleHref(starterExampleId)}"
+          class="playground-cta"
+        >
+          <span class="playground-cta-label">Playground</span>
+          <span class="playground-cta-heading">Build something with Arrow</span>
+          <span class="playground-cta-desc"
+            >Open a live editor with a starter template, hot reloading, and
+            every Arrow package ready to import.</span
+          >
+          <span class="playground-cta-action"
+            >Open Playground<span aria-hidden="true"> &rarr;</span></span
+          >
+        </a>
       </div>
     </section>
   `

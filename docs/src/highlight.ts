@@ -138,6 +138,7 @@ async function initHighlighter() {
     fsMap: new Map([
       [TWOSLASH_TYPES_PATH, arrowTypes],
       ['/App.ts', FrameworkExamples.app],
+      ['/app.ts', FrameworkExamples.app],
       ['/entry-server.ts', FrameworkExamples.server],
       ['/entry-client.ts', FrameworkExamples.client],
     ]),
@@ -166,14 +167,15 @@ function renderCodeBlock(
   highlighter: Awaited<ReturnType<typeof initHighlighter>>['highlighter'],
   twoslashTransformer: Awaited<ReturnType<typeof initHighlighter>>['twoslashTransformer'],
   code: string,
-  lang: string
+  lang: string,
+  enableTwoslash: boolean
 ) {
   const options = {
     lang,
     theme: 'css-variables',
   }
 
-  if (lang !== 'ts') {
+  if (lang !== 'ts' || !enableTwoslash) {
     return highlighter.codeToHtml(code, options)
   }
 
@@ -201,10 +203,18 @@ export default async function highlight() {
   codeBlocks.forEach((block) => {
     const lang = normalizeLanguage(block.className)
     const code = block.textContent || ''
-    const html = renderCodeBlock(highlighter, twoslashTransformer, code, lang)
-    const wrapper = createCodeWrapper(html)
     const pre = block.parentElement
     const codeBlock = pre?.closest('.code-block')
+    const enableTwoslash =
+      !block.closest('[data-disable-twoslash="true"]')
+    const html = renderCodeBlock(
+      highlighter,
+      twoslashTransformer,
+      code,
+      lang,
+      enableTwoslash
+    )
+    const wrapper = createCodeWrapper(html)
 
     if (wrapper) {
       pre?.replaceWith(wrapper)

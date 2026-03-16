@@ -68,7 +68,10 @@ export function ApiPage() {
       <div class="max-w-7xl mx-auto px-6 pt-8 pb-12">
         <div class="flex gap-12">
           ${nav.sidebar()}
-          <article class="min-w-0 max-w-3xl flex-1">
+          <article
+            class="min-w-0 max-w-3xl flex-1"
+            data-disable-twoslash="true"
+          >
             ${ReactiveApi()} ${WatchApi()} ${HtmlApi()} ${ComponentApi()}
             ${PickApi()} ${NextTickApi()} ${RenderApi()} ${BoundaryApi()}
             ${ToTemplateApi()} ${RenderDocumentApi()} ${RenderToStringApi()}

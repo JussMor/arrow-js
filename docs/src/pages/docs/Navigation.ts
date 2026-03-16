@@ -1,8 +1,13 @@
 import { html, reactive } from '@arrow-js/core'
+import {
+  docsExampleMeta,
+  playgroundExampleHref,
+} from '../../../play/example-meta.js'
 
 interface NavItem {
-  id: string
   label: string
+  id?: string
+  href?: string
 }
 
 interface NavGroup {
@@ -32,7 +37,13 @@ const navigation: NavGroup[] = [
   },
   {
     title: 'Examples',
-    items: [{ id: 'examples', label: 'Playground' }],
+    items: [
+      { id: 'examples', label: 'Overview' },
+      ...docsExampleMeta.map((example) => ({
+        label: example.title,
+        href: playgroundExampleHref(example.id),
+      })),
+    ],
   },
 ]
 
@@ -98,12 +109,14 @@ function NavGroupView(group: NavGroup) {
       <div class="nav-group-title">${group.title}</div>
       ${group.items.map(
         (item) =>
-          html`<a
-            href="${`#${item.id}`}"
-            class="nav-link"
-            data-active="${() => (spy.active === item.id ? '' : false)}"
-            >${item.label}</a
-          >`
+          item.href
+            ? html`<a href="${item.href}" class="nav-link nav-link-external">${item.label}</a>`
+            : html`<a
+                href="${`#${item.id}`}"
+                class="nav-link"
+                data-active="${() => (spy.active === item.id ? '' : false)}"
+                >${item.label}</a
+              >`
       )}
     </div>
   `

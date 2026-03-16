@@ -3,6 +3,10 @@ import { Hero } from './Hero'
 import { ScrollSpyNav } from '../../components/ScrollSpyNav'
 import type { NavGroup } from '../../components/ScrollSpyNav'
 import {
+  docsExampleMeta,
+  playgroundExampleHref,
+} from '../../../play/example-meta.js'
+import {
   WhatIsArrow,
   Quickstart,
   Components,
@@ -33,7 +37,13 @@ const homeNavGroups: NavGroup[] = [
   },
   {
     title: 'Examples',
-    items: [{ id: 'examples', label: 'Playground' }],
+    items: [
+      { id: 'examples', label: 'Overview' },
+      ...docsExampleMeta.map((example) => ({
+        label: example.title,
+        href: playgroundExampleHref(example.id),
+      })),
+    ],
   },
 ]
 
