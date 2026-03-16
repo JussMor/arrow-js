@@ -1,5 +1,6 @@
 import { renderToString, serializePayload } from '@arrow-js/ssr'
 import { createPage } from './app'
+import { htmlToMarkdown } from './html-to-markdown'
 
 function renderHead(page: { title: string; description: string }) {
   return [
@@ -21,4 +22,10 @@ export async function renderPage(url: string) {
     }),
     status: 200,
   }
+}
+
+export async function renderMarkdown(url: string) {
+  const page = createPage(url)
+  const result = await renderToString(page.view)
+  return htmlToMarkdown(result.html)
 }

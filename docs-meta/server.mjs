@@ -22,6 +22,13 @@ const htmlEntryRedirects = new Map([
   ['/play/preview/', '/play/preview.html'],
 ])
 
+/** Routes that serve dynamically-generated plain text / markdown. */
+const textRoutes = new Map([
+  ['/docs.md', { render: 'markdown', url: '/' }],
+  ['/api.md', { render: 'markdown', url: '/api' }],
+  ['/llms.txt', { render: 'llms' }],
+])
+
 const devHtmlEntries = new Map([
   ['/play/', path.resolve(__dirname, 'play/index.html')],
   ['/play/index.html', path.resolve(__dirname, 'play/index.html')],
@@ -39,6 +46,12 @@ const server = http.createServer(async (request, response) => {
     if (redirectTarget) {
       response.writeHead(302, { Location: redirectTarget })
       response.end()
+      return
+    }
+
+    const textRoute = resolveTextRoute(url)
+    if (textRoute) {
+      await serveTextRoute(textRoute, request, response)
       return
     }
 
@@ -229,4 +242,57 @@ function resolveDevHtmlEntry(url) {
     filePath,
     url: `${target.pathname}${target.search}`,
   }
+}
+
+function resolveTextRoute(url) {
+  const pathname = new URL(url, 'http://arrow.local').pathname
+  return textRoutes.get(pathname) ?? null
+}
+
+async function serveTextRoute(route, request, response) {
+  let renderMarkdown
+
+  if (isProduction) {
+    ;({ renderMarkdown } = await import(pathToFileURL(serverEntryPath).href))
+  } else {
+    ;({ renderMarkdown } = await vite.environments.ssr.runner.import(
+      '/src/entry-server.ts'
+    ))
+  }
+
+  let body
+
+  if (route.render === 'llms') {
+    const docsMarkdown = await renderMarkdown('/')
+    const apiMarkdown = await renderMarkdown('/api')
+    body = [
+      '# ArrowJS',
+      '',
+      '> A < 3KB reactive UI runtime with zero dependencies. Observable data, declarative DOM, and SSR built on platform primitives.',
+      '',
+      '## Documentation',
+      '',
+      '- [Docs](/docs.md): Guide-style essentials — what Arrow is, quickstart, components, reactive data, templates, and SSR.',
+      '- [API Reference](/api.md): Signature-focused reference for every export across @arrow-js/core, @arrow-js/framework, @arrow-js/ssr, and @arrow-js/hydrate.',
+      '',
+      '---',
+      '',
+      '# Docs',
+      '',
+      docsMarkdown,
+      '---',
+      '',
+      '# API Reference',
+      '',
+      apiMarkdown,
+    ].join('\n')
+  } else {
+    body = await renderMarkdown(route.url)
+  }
+
+  response.writeHead(200, {
+    'Content-Type': route.render === 'llms' ? 'text/plain; charset=utf-8' : 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, max-age=3600',
+  })
+  response.end(body)
 }
