@@ -26,18 +26,18 @@
 }
 
 html[data-theme='dark'] .play-shell {
-  --play-border: #32363d;
-  --play-bg: #1f2126;
-  --play-surface: #252830;
-  --play-text: #e6e8ec;
-  --play-text-muted: #98a0ac;
-  --play-accent: #2f81f7;
-  --play-explorer-bg: #1b1d22;
-  --play-explorer-hover: #2a2d34;
-  --play-explorer-active: #31353d;
-  --play-tab-bg: #202329;
-  --play-tab-active-bg: #252830;
-  --play-header-bg: #1b1d22;
+  --play-border: #27272a;
+  --play-bg: #09090b;
+  --play-surface: #18181b;
+  --play-text: #e4e4e7;
+  --play-text-muted: #a1a1aa;
+  --play-accent: #ffb000;
+  --play-explorer-bg: #0c0c0e;
+  --play-explorer-hover: #1c1c1f;
+  --play-explorer-active: #27272a;
+  --play-tab-bg: #0c0c0e;
+  --play-tab-active-bg: #18181b;
+  --play-header-bg: #0c0c0e;
 }
 
 /* ── Top bar ── */
@@ -532,7 +532,7 @@ html[data-theme='dark'] .monaco-editor .play-html-tag * {
 }
 
 html[data-theme='dark'] .play-preview {
-  background: #1a1d23;
+  background: #09090b;
 }
 
 html[data-theme='dark'] .play-context-menu {

@@ -712,7 +712,7 @@ export function Examples() {
           ${examples.map(
             (entry) => html`
               <div
-                class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 hover:border-arrow-500/40 transition-colors"
+                class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5"
               >
                 <h3
                   class="text-base font-semibold text-zinc-900 dark:text-white mb-1.5"

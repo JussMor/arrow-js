@@ -326,10 +326,16 @@ section[id] {
 .hero-code pre {
   margin: 0;
   padding: 1.25rem;
-  overflow-x: auto;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
   font-size: 0.8125rem;
   line-height: 1.7;
   background: transparent !important;
+}
+
+.hero-code:has(.twoslash-hover:hover) {
+  z-index: 50;
 }
 
 /* Inline code */

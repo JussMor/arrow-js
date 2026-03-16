@@ -11,3 +11,9 @@ if (!root) {
 
 await hydrate(root, createPage(window.location.pathname).view, payload)
 await highlight()
+
+const hero = document.getElementById('hero')
+if (hero) {
+  const { initCharacterRain } = await import('./character-rain')
+  initCharacterRain(hero)
+}

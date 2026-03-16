@@ -288,8 +288,22 @@ const scheduleHashSync = () => {
 
 const updateEditorTheme = () => {
   if (!monaco) return
+  if (!monaco.__arrowDarkDefined) {
+    monaco.editor.defineTheme('arrow-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#18181b',
+        'editorGutter.background': '#18181b',
+        'editorLineNumber.foreground': '#52525b',
+        'editorLineNumber.activeForeground': '#a1a1aa',
+      },
+    })
+    monaco.__arrowDarkDefined = true
+  }
   monaco.editor.setTheme(
-    document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs'
+    document.documentElement.dataset.theme === 'dark' ? 'arrow-dark' : 'vs'
   )
   scheduleHtmlHighlight()
 }
