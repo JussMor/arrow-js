@@ -13,13 +13,6 @@ export function createExpressionBlock(len: number): number {
   return pointer
 }
 
-export function storeExpressions(expSlots: ArrowExpression[]): number {
-  const len = expSlots.length
-  const pointer = createExpressionBlock(len)
-  writeExpressions(expSlots, pointer)
-  return pointer
-}
-
 export function writeExpressions(
   expSlots: ArrowExpression[],
   pointer: number
@@ -28,21 +21,6 @@ export function writeExpressions(
   for (let i = 1; i <= len; i++) {
     const nextValue = expSlots[i - 1]
     const target = pointer + i
-    if (Object.is(expressionPool[target], nextValue)) continue
-    expressionPool[target] = nextValue
-    expressionObservers[target]?.(nextValue)
-  }
-}
-
-export function updateExpressions(
-  sourcePointer: number,
-  toPointer: number
-): void {
-  if (sourcePointer === toPointer) return
-  const len = expressionPool[sourcePointer] as number
-  for (let i = 1; i <= len; i++) {
-    const target = toPointer + i
-    const nextValue = expressionPool[sourcePointer + i]
     if (Object.is(expressionPool[target], nextValue)) continue
     expressionPool[target] = nextValue
     expressionObservers[target]?.(nextValue)

@@ -28,7 +28,6 @@ export interface ArrowTemplate {
   key: (key: ArrowTemplateKey) => ArrowTemplate
   id: (id: ArrowTemplateId) => ArrowTemplate
   _c: () => Chunk
-  _e: number
   _k: ArrowTemplateKey
   _i?: ArrowTemplateId
 }
@@ -123,7 +122,6 @@ type RenderController = ((
 }
 type InternalTemplate = ArrowTemplate & {
   d?: () => void
-  x?: () => void
   _a?: ArrowExpression[]
   _h?: Chunk
   _m?: boolean
@@ -243,7 +241,6 @@ function syncTemplateToChunk(
   chunk.i = template._i
   template._h = chunk
   template._m = mounted
-  template._e = chunk.e
   writeExpressions(template._a!, chunk.e)
 }
 
@@ -369,15 +366,6 @@ function trimStaleChunks() {
   }
 }
 
-function attachChunkEvents(chunk: Chunk) {
-  const events = chunk.v
-  if (!events) return
-  for (let i = 0; i < events.length; i++) {
-    const [target, event, listener] = events[i]
-    target.addEventListener(event, listener)
-  }
-}
-
 function detachChunkEvents(chunk: Chunk) {
   const events = chunk.v
   if (!events) return
@@ -400,12 +388,10 @@ export function html(
   template.isT = true
   template._a = expSlots
   template._c = ensureChunk
-  template._e = -1
   template._m = false
   template._s = strings
   template.key = setTemplateKey
   template.id = setTemplateId
-  template.x = releaseTemplateExpressions
   template.d = resetTemplate
   return template
 }
@@ -431,14 +417,9 @@ function setTemplateId(this: InternalTemplate, id: ArrowTemplateId) {
   return this
 }
 
-function releaseTemplateExpressions(this: InternalTemplate) {
-  this._e = -1
-}
-
 function resetTemplate(this: InternalTemplate) {
   this._m = false
   this._h = undefined
-  this._e = -1
 }
 
 function renderTemplate(template: InternalTemplate, el?: ParentNode) {

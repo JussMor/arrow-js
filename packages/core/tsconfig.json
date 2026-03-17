@@ -11,5 +11,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "exclude": ["**~old.ts", "src/html2.ts"]
+  "exclude": ["**~old.ts"]
 }
