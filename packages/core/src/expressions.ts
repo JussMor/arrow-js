@@ -25,16 +25,22 @@ export function updateExpressions(
   const len = expressionPool[sourcePointer] as number
   for (let i = 1; i <= len; i++) {
     const pointer = toPointer + i
-    expressionPool[pointer] = expressionPool[sourcePointer + i]
-    expressionObservers[pointer]?.(expressionPool[pointer])
+    const nextValue = expressionPool[sourcePointer + i]
+    if (Object.is(expressionPool[pointer], nextValue)) continue
+    expressionPool[pointer] = nextValue
+    expressionObservers[pointer]?.(nextValue)
   }
 }
 
 export function onExpressionUpdate(
   pointer: number,
-  observer: CallableFunction
+  observer?: CallableFunction
 ): void {
-  expressionObservers[pointer] = observer
+  if (observer) {
+    expressionObservers[pointer] = observer
+    return
+  }
+  delete expressionObservers[pointer]
 }
 
 export function releaseExpressions(pointer: number): void {

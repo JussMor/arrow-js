@@ -66,8 +66,12 @@ export interface PropertyObserver<T> {
  * ```
  */
 type Dependencies = Array<number | PropertyKey>
+export type TrackedDependencies = Dependencies
 
-type ListenerMap = Partial<Record<PropertyKey, Set<PropertyObserver<unknown>>>>
+type ListenerSlot =
+  | PropertyObserver<unknown>
+  | Set<PropertyObserver<unknown>>
+type ListenerMap = Partial<Record<PropertyKey, ListenerSlot>>
 
 /**
  * A registry of reactive objects to their unique numeric index which serves as
@@ -104,27 +108,16 @@ let trackKey = 0
 /**
  * Array methods that modify the array.
  */
-const arrayMutations: PropertyKey[] = [
-  'push',
-  'pop',
-  'shift',
-  'unshift',
-  'splice',
-  'sort',
-  'copyWithin',
-  'fill',
-  'reverse',
-]
-
 /**
  * A registry of dependencies for each tracked key.
  */
-const trackedDependencies: Dependencies[] = []
+const trackedDependencies: Array<Dependencies | undefined> = []
 
 /**
  * A registry of dependencies that are being watched by a given watcher.
  */
-const watchedDependencies: Dependencies[] = []
+const watchedDependencies: Array<Dependencies | undefined> = []
+const dependencyPool: Dependencies[] = []
 
 /**
  * A map of child ids to their parents (a child can have multiple parents).
@@ -156,11 +149,7 @@ export function reactive<T extends ReactiveTarget, TValue>(
   const id = ++index
   listeners[id] = {}
   // Create the actual reactive proxy.
-  const proxy = new Proxy(data, {
-    has: has.bind(null, id),
-    set: set.bind(null, id),
-    get: get.bind(null, id),
-  }) as Reactive<T>
+  const proxy = new Proxy(data, proxyHandler) as Reactive<T>
   // let the ids know about the index
   ids.set(data, index).set(proxy, index)
   return proxy
@@ -223,7 +212,7 @@ function trackArray(
   target: ReactiveTarget,
   value: unknown
 ) {
-  if (arrayMutations.includes(key) && typeof value === 'function') {
+  if (typeof value === 'function' && isArrayMutation(key)) {
     return (...args: unknown[]) => {
       const result = Reflect.apply(
         value as (...args: unknown[]) => unknown,
@@ -285,6 +274,18 @@ function set(
   return didSucceed
 }
 
+const proxyHandler: ProxyHandler<ReactiveTarget> = {
+  has(target, key) {
+    return has(getId(target as object), target, key)
+  },
+  get(target, key, receiver) {
+    return get(getId(target as object), target, key, receiver)
+  },
+  set(target, key, value, receiver) {
+    return set(getId(target as object), target, key, value, receiver)
+  },
+}
+
 /**
  *
  * @param child - Creates a child relationship
@@ -333,10 +334,16 @@ function readComputed(
 }
 
 function linkParent(childId: number, parentId: number, key: PropertyKey) {
-  if (!parents[childId]?.some(([parent, property]) => parent === parentId && property === key)) {
-    parents[childId] ??= []
-    parents[childId].push([parentId, key])
+  const entries = parents[childId]
+  if (entries) {
+    for (let i = 0; i < entries.length; i++) {
+      const [parent, property] = entries[i]
+      if (parent === parentId && property === key) return
+    }
+  } else {
+    parents[childId] = []
   }
+  parents[childId].push([parentId, key])
 }
 
 /**
@@ -354,9 +361,14 @@ function reassign(
 ) {
   // Remove the old parent relationship
   if (parents[from]) {
-    const index = parents[from].findIndex(
-      ([parent, property]) => parent == parentId && property == key
-    )
+    let index = -1
+    for (let i = 0; i < parents[from].length; i++) {
+      const [parent, property] = parents[from][i]
+      if (parent == parentId && property == key) {
+        index = i
+        break
+      }
+    }
     if (index > -1) parents[from].splice(index, 1)
   }
   linkParent(to, parentId, key)
@@ -379,7 +391,11 @@ function emit(
   const targetListeners = listeners[id]
   const propertyListeners = targetListeners[key]
   if (propertyListeners) {
-    propertyListeners.forEach((callback) => callback(newValue, oldValue))
+    if (typeof propertyListeners === 'function') {
+      propertyListeners(newValue, oldValue)
+    } else {
+      propertyListeners.forEach((callback) => callback(newValue, oldValue))
+    }
   }
   if (notifyParents) {
     parents[id]?.forEach(([parentId, property]) => emit(parentId, property))
@@ -392,17 +408,18 @@ function emit(
 const api = {
   $on:
     (target: ReactiveTarget): ReactiveAPI<ReactiveTarget>['$on'] =>
-    (property, callback) => {
-      const targetListeners = listeners[getId(target)] as ListenerMap
-      const key = property as PropertyKey
-      const propertyListeners =
-        targetListeners[key] ?? (targetListeners[key] = new Set())
-      propertyListeners.add(callback as PropertyObserver<unknown>)
-    },
+    (property, callback) =>
+      addListener(
+        listeners[getId(target)] as ListenerMap,
+        property as PropertyKey,
+        callback as PropertyObserver<unknown>
+      ),
   $off:
     (target: ReactiveTarget): ReactiveAPI<ReactiveTarget>['$off'] =>
     (property, callback) =>
-      (listeners[getId(target)] as ListenerMap)[property as PropertyKey]?.delete(
+      removeListener(
+        listeners[getId(target)] as ListenerMap,
+        property as PropertyKey,
         callback as PropertyObserver<unknown>
       ),
 }
@@ -414,14 +431,44 @@ const api = {
  */
 function track(id: number, property: PropertyKey): void {
   if (!trackKey) return
-  trackedDependencies[trackKey].push(id, property)
+  trackedDependencies[trackKey]!.push(id, property)
+}
+
+export function withoutTracking<T>(fn: () => T): T {
+  const previous = trackKey
+  trackKey = 0
+  try {
+    return fn()
+  } finally {
+    trackKey = previous
+  }
 }
 
 /**
  * Begin tracking reactive dependencies.
  */
 function startTracking() {
-  trackedDependencies[++trackKey] = []
+  trackedDependencies[++trackKey] = takeDependencies()
+}
+
+export function captureDependencies<F extends (...args: unknown[]) => unknown>(
+  effect: F
+): [returnValue: ReturnType<F>, deps: TrackedDependencies] {
+  const key = ++trackKey
+  const deps = (trackedDependencies[key] = takeDependencies())
+  try {
+    return [(effect as CallableFunction)() as ReturnType<F>, deps]
+  } catch (error) {
+    trackedDependencies[key] = undefined
+    trackKey--
+    releaseDependencies(deps)
+    throw error
+  } finally {
+    if (trackedDependencies[key]) {
+      trackedDependencies[key] = undefined
+      trackKey--
+    }
+  }
 }
 
 /**
@@ -431,20 +478,25 @@ function startTracking() {
  */
 function stopTracking(watchKey: number, callback: PropertyObserver<unknown>) {
   const key = trackKey--
-  const deps = trackedDependencies[key]
-  flushListeners(watchedDependencies[watchKey], callback)
+  const deps = trackedDependencies[key]!
+  const previousDeps = watchedDependencies[watchKey]
+  if (sameDependencies(previousDeps, deps)) {
+    watchedDependencies[watchKey] = previousDeps
+    releaseDependencies(deps)
+    trackedDependencies[key] = undefined
+    return
+  }
+  flushListeners(previousDeps, callback)
   const len = deps.length
   for (let i = 0; i < len; i += 2) {
-    const targetListeners = listeners[deps[i] as number]
-    const property = deps[i + 1]
-    const propertyListeners =
-      (targetListeners[property] ??= new Set()) as Set<
-        PropertyObserver<unknown>
-      >
-    propertyListeners.add(callback)
+    addListener(
+      listeners[deps[i] as number],
+      deps[i + 1],
+      callback
+    )
   }
   watchedDependencies[watchKey] = deps
-  trackedDependencies[key] = []
+  trackedDependencies[key] = undefined
 }
 
 /**
@@ -454,14 +506,88 @@ function stopTracking(watchKey: number, callback: PropertyObserver<unknown>) {
  * @param callback - The callback to remove.
  */
 function flushListeners(
-  deps: Dependencies,
+  deps: Dependencies | undefined,
   callback: PropertyObserver<unknown>
 ) {
   if (!deps) return
   const len = deps.length
   for (let i = 0; i < len; i += 2) {
-    listeners[deps[i] as number][deps[i + 1]]?.delete(callback)
+    removeListener(listeners[deps[i] as number], deps[i + 1], callback)
   }
+  releaseDependencies(deps)
+}
+
+export function observeDependencies(
+  deps: TrackedDependencies,
+  callback: PropertyObserver<unknown>
+): () => void {
+  const len = deps.length
+  if (!len) return () => releaseDependencies(deps)
+  for (let i = 0; i < len; i += 2) {
+    addListener(listeners[deps[i] as number], deps[i + 1], callback)
+  }
+  return () => flushListeners(deps, callback)
+}
+
+function addListener(
+  targetListeners: ListenerMap,
+  key: PropertyKey,
+  callback: PropertyObserver<unknown>
+) {
+  const slot = targetListeners[key]
+  if (!slot) {
+    targetListeners[key] = callback
+    return
+  }
+  if (slot === callback) return
+  if (typeof slot === 'function') {
+    targetListeners[key] = new Set([slot, callback])
+    return
+  }
+  slot.add(callback)
+}
+
+function removeListener(
+  targetListeners: ListenerMap,
+  key: PropertyKey,
+  callback: PropertyObserver<unknown>
+) {
+  const slot = targetListeners[key]
+  if (!slot) return
+  if (slot === callback) {
+    delete targetListeners[key]
+    return
+  }
+  if (typeof slot === 'function') return
+  slot.delete(callback)
+  if (slot.size === 1) {
+    targetListeners[key] = slot.values().next().value as PropertyObserver<unknown>
+  } else if (!slot.size) {
+    delete targetListeners[key]
+  }
+}
+
+function takeDependencies(): Dependencies {
+  return dependencyPool.pop() ?? []
+}
+
+function sameDependencies(
+  left: Dependencies | undefined,
+  right: Dependencies | undefined
+) {
+  if (!left || !right) return false
+  const length = left.length
+  if (length !== right.length) return false
+  for (let i = 0; i < length; i++) {
+    if (left[i] !== right[i]) return false
+  }
+  return true
+}
+
+function releaseDependencies(deps: Dependencies | undefined) {
+  if (!deps) return
+  deps.length = 0
+  dependencyPool.push(deps)
 }
 
 /**
@@ -488,7 +614,7 @@ export function watch<
   afterEffect?: A
 ): [returnValue: ReturnType<F> | ReturnType<A>, stop: () => void] {
   const watchKey = ++watchIndex
-  const isPointer = Number.isInteger(effect)
+  const isPointer = typeof effect === 'number'
   let rerun: null | PropertyObserver<unknown> = queue(
     runEffect as PropertyObserver<unknown>
   )
@@ -504,9 +630,25 @@ export function watch<
   }
   const stop = () => {
     flushListeners(watchedDependencies[watchKey], rerun!)
-    watchedDependencies[watchKey] = []
+    watchedDependencies[watchKey] = undefined
     rerun = null
   }
   if (isPointer) onExpressionUpdate(effect as number, rerun)
   return [runEffect(), stop]
+}
+
+function isArrayMutation(key: PropertyKey) {
+  switch (key) {
+    case 'push':
+    case 'pop':
+    case 'shift':
+    case 'unshift':
+    case 'splice':
+    case 'sort':
+    case 'copyWithin':
+    case 'fill':
+    case 'reverse':
+      return true
+  }
+  return false
 }

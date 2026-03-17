@@ -2,6 +2,12 @@ import { watch } from './reactive'
 import { isChunk, isTpl, queue, swapCleanupCollector } from './common'
 import { setAttr } from './dom'
 import {
+  adoptCapturedChunk,
+  getHydrationCapture,
+  registerHydrationHook,
+} from './hydration'
+import type { HydrationCapture, NodeMap } from './hydration'
+import {
   createPropsProxy,
   isCmp,
 } from './component'
@@ -13,59 +19,19 @@ import {
   storeExpressions,
   updateExpressions,
 } from './expressions'
-/**
- * An arrow template, one of ArrowJS's core rendering utilities. Specifically,
- * templates are functions that return a function which mounts the template to
- * a given parent node. However, the template also has some other properties on
- * it like `.key` and `.isT`.
- *
- * The "magic" of an arrow template, is any expressions that are in the template
- * literal are automatically observed for changes. When a change is detected,
- * the bound attributes or textNodes are updated.
- */
+
 export interface ArrowTemplate {
-  /**
-   * Mounts the template to a given parent node.
-   */
   (parent: ParentNode): ParentNode
   (): DocumentFragment
-  /**
-   * A boolean flag that indicates this is indeed an ArrowTemplate.
-   */
   isT: boolean
-  /**
-   * Adds a key to this template to identify it as a unique instance.
-   * @param key - A unique key that identifies this template instance (not index).
-   * @returns
-   */
   key: (key: ArrowTemplateKey) => ArrowTemplate
-  /**
-   * Yields the underlying chunk object that is used to render this template.
-   * @returns
-   * @internal
-   */
   _c: () => Chunk
-  /**
-   * Yield the reactive expressions that are contained within this template.
-   * Does not contain the expressions that are are not "reactive".
-   * @returns
-   * @internal
-   */
   _e: number
-  /**
-   * The template key.
-   */
   _k: ArrowTemplateKey
-  /**
-   * The allowed values for arrow keys.
-   */
 }
 
 type ArrowTemplateKey = string | number | undefined
 
-/**
- * Types of return values that can be rendered.
- */
 export type ArrowRenderable =
   | string
   | number
@@ -76,50 +42,25 @@ export type ArrowRenderable =
   | ArrowTemplate
   | Array<string | number | boolean | ComponentCall | ArrowTemplate>
 
-/**
- * A reactive function is a function that is bound to a template. It is the
- * higher order control around the expressions that are in the template literal.
- * It is responsible for updating the template when the expression changes.
- */
 export interface ReactiveFunction {
   (el?: Node): ArrowRenderable
-  // (ev: Event, listener: EventListenerOrEventListenerObject): void
   $on: (observer: ArrowFunction | null) => ArrowFunction | null
   _up: (newExpression: ReactiveFunction) => void
   e: ArrowExpression
   s: boolean
 }
 
-/**
- * An array of reactive functions.
- */
 export type ReactiveExpressions = {
-  /**
-   * The index of the currently active expression.
-   */
   i: number
-  /**
-   * An array of the actual expressions.
-   */
   e: ReactiveFunction[]
 }
 
-/**
- * An internal primitive that is used to e a dom elements.
- */
 export interface ArrowFragment {
   <T extends ParentNode>(parent?: T): T extends undefined ? DocumentFragment : T
 }
 
-/**
- * A parent node is either an element or a document fragment — something that
- * can have elements appended to it.
- */
 export type ParentNode = Node | DocumentFragment
 
-/**
- * A classification of items that can be rendered within the template.
- */
 export type RenderGroup =
   | ArrowTemplate
   | ArrowTemplate[]
@@ -127,106 +68,33 @@ export type RenderGroup =
   | Node[]
   | string[]
 
-/**
- * A function that can be used as an arrow expression — always returns a
- * renderable.
- */
 export type ArrowFunction = (...args: unknown[]) => ArrowRenderable
 
-/**
- * The possible value of an arrow expression.
- */
 export type ArrowExpression =
   | ArrowRenderable
   | ArrowFunction
   | EventListener
   | ((evt: InputEvent) => void)
 
-/**
- * A chunk of HTML with paths to the expressions that are contained within it.
- */
 export interface Chunk {
-  /**
-   * A compact binding tape plus interned attribute names for the expressions
-   * that are contained within the HTML of this chunk.
-   */
   readonly paths: [number[], string[]]
-  /**
-   * A document fragment that contains the HTML of this chunk. Note: this is
-   * only populated with nodes until those nodes are mounted.
-   */
   dom: DocumentFragment
-  /**
-   * An array of child nodes that are contained within this chunk. These
-   * references stay active even after the nodes are mounted.
-   */
   ref: DOMRef
-  /**
-   * A reference to the template that created this chunk.
-   */
   _t: ArrowTemplate
-  /**
-   * A unique key that identifies this template instance, generally used in
-   * list rendering.
-   */
   k?: ArrowTemplateKey
-  /**
-   * Cleanup callbacks for reactive bindings in this chunk.
-   */
   u?: Array<() => void> | null
-  /**
-   * The stable source box used to update component props without rerunning the factory.
-   */
   s?: ReturnType<typeof createPropsProxy>[1]
-  /**
-   * Hydration hooks used to adopt live DOM nodes after SSR.
-   */
-  _h?: HydrationHook[]
 }
 
 interface ChunkProto {
-  readonly html: string
+  readonly template: HTMLTemplateElement
   readonly paths: Chunk['paths']
 }
 
-/**
- * A reference to the DOM elements mounted by a chunk.
- */
 interface DOMRef {
   f: ChildNode | null
   l: ChildNode | null
-  adopt: (map: NodeMap) => void
 }
-
-interface HydrationHook {
-  adopt: (map: NodeMap, visited: WeakSet<Chunk>) => void
-}
-
-interface NodeTarget<T extends ChildNode = ChildNode> {
-  node: T
-}
-
-type NodeMap = WeakMap<Node, Node>
-
-/**
- * A mutable stack of bindings used to create reactive expressions. We
- * initialize this with a large array to avoid memory allocation costs during
- * node creation, and then perform occasional clean up work.
- */
-let bindingStackPos = -1
-const bindingStack: Array<Node | number> = []
-const nodeStack: Node[] = []
-
-/**
- * The delimiter that describes where expressions are located.
- */
-const delimiter = '¤'
-const delimiterComment = `<!--${delimiter}-->`
-
-/**
- * A memo of pathed chunks that have been created.
- */
-const chunkMemo: Record<string, ChunkProto> = {}
 
 type Rendered = Chunk | Text
 type RenderController = ((
@@ -237,16 +105,21 @@ type RenderController = ((
 type InternalTemplate = ArrowTemplate & {
   d?: () => void
   x?: () => void
+  _a?: ArrowExpression[]
+  _h?: Chunk
+  _m?: boolean
+  _s?: TemplateStringsArray | string[]
 }
 
-function registerHydrationHook(chunk: Chunk, hook: HydrationHook) {
-  chunk._h ??= []
-  chunk._h.push(hook)
-}
+let bindingStackPos = -1
+const bindingStack: Array<Node | number> = []
+const nodeStack: Node[] = []
 
-function createNodeTarget<T extends ChildNode>(node: T): NodeTarget<T> {
-  return { node }
-}
+const delimiter = '¤'
+const delimiterComment = `<!--${delimiter}-->`
+
+const chunkMemo: Record<string, ChunkProto> = {}
+const chunkMemoByRef = new WeakMap<ReadonlyArray<string>, ChunkProto>()
 
 function moveDOMRef(
   ref: DOMRef,
@@ -269,12 +142,6 @@ function moveDOMRef(
   }
 }
 
-/**
- * The template tagging function, used like: html`<div></div>`(mountEl)
- * @param  {TemplateStringsArray} strings
- * @param  {any[]} ...expressions
- * @returns ArrowTemplate
- */
 export function html(
   strings: TemplateStringsArray | string[],
   ...expSlots: ArrowExpression[]
@@ -283,71 +150,70 @@ export function html(
   strings: TemplateStringsArray | string[],
   ...expSlots: ArrowExpression[]
 ): ArrowTemplate {
-  let chunk: Chunk | undefined
-  let expressionPointer = storeExpressions(expSlots)
-
-  function getExpressionPointer() {
-    return expressionPointer < 0
-      ? (template._e = expressionPointer = storeExpressions(expSlots))
-      : expressionPointer
-  }
-
-  function getChunk() {
-    if (!chunk) {
-      chunk = createChunk(
-        strings as string[]
-      ) as unknown as Chunk
-      chunk._t = template
-      chunk.k = template._k
-    }
-    return chunk
-  }
-  let hasMounted = false
-
-  // The actual template. Note templates can be moved and remounted by calling
-  // the template function again. This takes all the rendered dom nodes and
-  // moves them back into the document fragment to be re-appended.
-  const template = ((el?: ParentNode) => {
-    if (!hasMounted) {
-      hasMounted = true
-      return createBindings(getChunk(), getExpressionPointer(), el)
-    } else {
-      const chunk = getChunk()
-      moveDOMRef(chunk.ref, chunk.dom)
-      return el ? el.appendChild(chunk.dom) : chunk.dom
-    }
-  }) as InternalTemplate
-
-  // If the template contains no expressions, it is 100% static so it's key
-  // its own content
+  const template = ((el?: ParentNode) =>
+    renderTemplate(template as InternalTemplate, el)) as InternalTemplate
   template.isT = true
-  template._c = getChunk
-  template._e = expressionPointer
-  template.key = (key: ArrowTemplateKey): ArrowTemplate => {
-    template._k = key
-    return template
-  }
-  template.x = () => {
-    if (expressionPointer + 1) {
-      releaseExpressions(expressionPointer)
-      template._e = -1
-      expressionPointer = -1
-    }
-  }
-  template.d = () => {
-    hasMounted = false
-    chunk = undefined
-    template.x?.()
-  }
+  template._a = expSlots
+  template._c = ensureChunk
+  template._e = storeExpressions(expSlots)
+  template._m = false
+  template._s = strings
+  template.key = setTemplateKey
+  template.x = releaseTemplateExpressions
+  template.d = resetTemplate
   return template
 }
 
-/**
- * Applies bindings to a pathed chunk and returns the resulting document
- * fragment that is ready to mount.
- * @param chunk - A chunk of HTML with paths to the expressions.
- * @param expressions - An expression list with cursor.
- */
+function ensureExpressionPointer(template: InternalTemplate) {
+  return template._e < 0
+    ? (template._e = storeExpressions(template._a!))
+    : template._e
+}
+
+function ensureChunk(this: InternalTemplate) {
+  let chunk = this._h
+  if (!chunk) {
+    chunk = createChunk(this._s as string[]) as Chunk
+    chunk._t = this
+    chunk.k = this._k
+    this._h = chunk
+  }
+  return chunk
+}
+
+function setTemplateKey(this: InternalTemplate, key: ArrowTemplateKey) {
+  this._k = key
+  if (this._h) this._h.k = key
+  return this
+}
+
+function releaseTemplateExpressions(this: InternalTemplate) {
+  if (this._e + 1) {
+    releaseExpressions(this._e)
+    this._e = -1
+  }
+}
+
+function resetTemplate(this: InternalTemplate) {
+  this._m = false
+  this._h = undefined
+  this.x?.()
+}
+
+function renderTemplate(template: InternalTemplate, el?: ParentNode) {
+  if (!template._m) {
+    template._m = true
+    return createBindings(
+      template._c(),
+      ensureExpressionPointer(template),
+      el
+    )
+  }
+  const liveChunk = template._c()
+  moveDOMRef(liveChunk.ref, liveChunk.dom)
+  return el ? el.appendChild(liveChunk.dom) : liveChunk.dom
+}
+
 function createBindings(
   chunk: Chunk,
   expressionPointer: number,
@@ -364,7 +230,7 @@ function createBindings(
     let depth = sharedDepth
     let node = nodeStack[depth] as Node
     while (remaining--) {
-      node = node.childNodes.item(pathTape[tapePos++])
+      node = node.childNodes[pathTape[tapePos++]] as Node
       nodeStack[++depth] = node
     }
     bindingStack[++bindingStackPos] = node
@@ -374,23 +240,14 @@ function createBindings(
   for (let s = stackStart, e = expressionPointer + 1; s < stackEnd; s++, e++) {
     const node = bindingStack[s] as ChildNode
     const segment = bindingStack[++s] as number
-    if (segment) {
-      createAttrBinding(node, attrNames[segment - 1], e, chunk)
-    } else {
-      createNodeBinding(node, e, chunk)
-    }
+    if (segment) createAttrBinding(node, attrNames[segment - 1], e, chunk)
+    else createNodeBinding(node, e, chunk)
   }
   bindingStack.length = stackStart
   bindingStackPos = stackStart - 1
   return el ? el.appendChild(chunk.dom) && el : chunk.dom
 }
 
-/**
- * Adds a binding for a specific reactive piece of data by replacing the node.
- * @param node - A comment node to replace.
- * @param expression - An expression to bind to the node.
- * @param parentChunk - The parent chunk that contains the node.
- */
 function createNodeBinding(
   node: ChildNode,
   expressionPointer: number,
@@ -398,45 +255,71 @@ function createNodeBinding(
 ) {
   let fragment: DocumentFragment | Text
   const expression = expressionPool[expressionPointer]
+  const capture = getHydrationCapture()
+
   if (isCmp(expression) || isTpl(expression) || Array.isArray(expression)) {
-    // We are dealing with a template that is not reactive. Render it.
-    const render = createRenderFn()
+    const render = createRenderFn(capture)
     fragment = render(expression)!
-    registerHydrationHook(parentChunk, {
-      adopt(map, visited) {
+    if (capture) {
+      registerHydrationHook(parentChunk, (map, visited) => {
         render.adopt(map, visited)
-      },
-    })
+      })
+    }
   } else if (typeof expression === 'function') {
-    const render = createRenderFn()
-    const [frag, stop] = watch(expressionPointer, render)
+    let target: Text | null = null
+    let render: RenderController | null = null
+    const [frag, stop] = watch(expressionPointer, (value) => {
+      if (!render) {
+        if (isCmp(value) || isTpl(value) || Array.isArray(value)) {
+          render = createRenderFn(capture)
+          const next = render(value)!
+          if (target) {
+            target.parentNode?.replaceChild(next, target)
+            target = null
+          }
+          return next
+        }
+        if (!target) {
+          target = document.createTextNode(renderText(value))
+          return target
+        }
+        const next = renderText(value)
+        if (target.nodeValue !== next) target.nodeValue = next
+        return target
+      }
+      return render(value)
+    })
     ;(parentChunk.u ??= []).push(stop)
     fragment = frag!
-    registerHydrationHook(parentChunk, {
-      adopt(map, visited) {
-        render.adopt(map, visited)
-      },
-    })
+    if (capture) {
+      registerHydrationHook(parentChunk, (map, visited) => {
+        if (target) {
+          const adopted = map.get(target)
+          if (adopted) target = adopted as Text
+        }
+        render?.adopt(map, visited)
+      })
+    }
   } else {
-    const target = createNodeTarget(document.createTextNode(renderText(expression)))
-    fragment = target.node
+    let target = document.createTextNode(renderText(expression))
+    fragment = target
     onExpressionUpdate(
       expressionPointer,
-      (value: string) => (target.node.nodeValue = renderText(value))
+      (value: string) => (target.nodeValue = renderText(value))
     )
-    registerHydrationHook(parentChunk, {
-      adopt(map) {
-        const adopted = map.get(target.node)
-        if (adopted) {
-          target.node = adopted as Text
-        }
-      },
-    })
+    if (capture) {
+      registerHydrationHook(parentChunk, (map) => {
+        const adopted = map.get(target)
+        if (adopted) target = adopted as Text
+      })
+    }
   }
+
   if (node === parentChunk.ref.f || node === parentChunk.ref.l) {
-    const last = fragment.nodeType === 11
-      ? (fragment.lastChild as ChildNode | null)
-      : (fragment as ChildNode)
+    const last =
+      fragment.nodeType === 11
+        ? (fragment.lastChild as ChildNode | null)
+        : (fragment as ChildNode)
     if (node === parentChunk.ref.f) {
       parentChunk.ref.f =
         fragment.nodeType === 11
@@ -445,14 +328,10 @@ function createNodeBinding(
     }
     if (node === parentChunk.ref.l) parentChunk.ref.l = last
   }
+
   node.parentNode?.replaceChild(fragment, node)
 }
 
-/**
- *
- * @param node -
- * @param expression
- */
 function createAttrBinding(
   node: ChildNode,
   attrName: string,
@@ -460,52 +339,47 @@ function createAttrBinding(
   parentChunk: Chunk
 ) {
   if (node.nodeType !== 1) return
-  const target = createNodeTarget(node as Element)
+  let target = node as Element
   const expression = expressionPool[expressionPointer]
+  const capture = getHydrationCapture()
+
   if (attrName[0] === '@') {
     const event = attrName.slice(1)
     const listener = (evt: Event) =>
       (expressionPool[expressionPointer] as CallableFunction)?.(evt)
-    target.node.addEventListener(event, listener)
-    target.node.removeAttribute(attrName)
-    ;(parentChunk.u ??= []).push(() =>
-      target.node.removeEventListener(event, listener)
-    )
-    registerHydrationHook(parentChunk, {
-      adopt(map) {
-        const adopted = map.get(target.node)
+    target.addEventListener(event, listener)
+    target.removeAttribute(attrName)
+    ;(parentChunk.u ??= []).push(() => target.removeEventListener(event, listener))
+    if (capture) {
+      registerHydrationHook(parentChunk, (map) => {
+        const adopted = map.get(target)
         if (!adopted) return
-        target.node.removeEventListener(event, listener)
-        target.node = adopted as Element
-        target.node.addEventListener(event, listener)
-        target.node.removeAttribute(attrName)
-      },
-    })
+        target.removeEventListener(event, listener)
+        target = adopted as Element
+        target.addEventListener(event, listener)
+        target.removeAttribute(attrName)
+      })
+    }
   } else if (typeof expression === 'function' && !isTpl(expression)) {
-    // We are dealing with a reactive expression so perform watch binding.
     const [, stop] = watch(expressionPointer, (value) =>
-      setAttr(target.node, attrName, value as string)
+      setAttr(target, attrName, value as string)
     )
     ;(parentChunk.u ??= []).push(stop)
-    registerHydrationHook(parentChunk, {
-      adopt(map) {
-        const adopted = map.get(target.node)
-        if (adopted) target.node = adopted as Element
-      },
-    })
+    if (capture) {
+      registerHydrationHook(parentChunk, (map) => {
+        const adopted = map.get(target)
+        if (adopted) target = adopted as Element
+      })
+    }
   } else {
-    setAttr(target.node, attrName, expression as string | number | boolean | null)
+    setAttr(target, attrName, expression as string | number | boolean | null)
     onExpressionUpdate(expressionPointer, (value: string) =>
-      setAttr(target.node, attrName, value)
+      setAttr(target, attrName, value)
     )
   }
 }
 
-/**
- *
- * @param parentChunk - The parent chunk that contains the node.
- */
-function createRenderFn(): RenderController {
+function createRenderFn(capture: HydrationCapture | null): RenderController {
   let previous: Chunk | Text | Rendered[]
   const keyedChunks: Record<Exclude<ArrowTemplateKey, undefined>, Chunk> = {}
   let updaterFrag: DocumentFragment | null = null
@@ -514,135 +388,109 @@ function createRenderFn(): RenderController {
     renderable: ArrowRenderable
   ): DocumentFragment | Text | void {
     if (!previous) {
-      /**
-       * Initial render:
-       */
       if (isCmp(renderable)) {
         const [fragment, chunk] = renderComponent(renderable)
         previous = chunk
         return fragment
-      } else if (isTpl(renderable)) {
-        // do things
+      }
+      if (isTpl(renderable)) {
         const fragment = renderable()
         previous = renderable._c()
         return fragment
-      } else if (Array.isArray(renderable)) {
-        let fragment: DocumentFragment
-        ;[fragment, previous] = renderList(renderable)
+      }
+      if (Array.isArray(renderable)) {
+        const [fragment, rendered] = renderList(renderable)
+        previous = rendered
         return fragment
+      }
+      return (previous = document.createTextNode(renderText(renderable)))
+    }
+
+    if (Array.isArray(renderable)) {
+      if (!Array.isArray(previous)) {
+        const [fragment, nextList] = renderList(renderable)
+        getNode(previous).after(fragment)
+        forgetChunk(previous)
+        unmount(previous)
+        previous = nextList
       } else {
-        return (previous = document.createTextNode(renderText(renderable)))
+        let i = 0
+        const renderableLength = renderable.length
+        const previousLength = previous.length
+        let anchor: ChildNode | undefined
+        const renderedList: Rendered[] = []
+        const previousToRemove = new Set(previous)
+        if (renderableLength > previousLength) updaterFrag ??= document.createDocumentFragment()
+        for (; i < renderableLength; i++) {
+          let item:
+            | string
+            | number
+            | boolean
+            | ComponentCall
+            | ArrowTemplate = renderable[i] as ArrowTemplate
+          const prev = previous[i]
+          let key: ArrowTemplateKey
+          if (
+            isTpl(item) &&
+            (key = item._k) !== undefined &&
+            key in keyedChunks
+          ) {
+            const keyedChunk = keyedChunks[key]
+            updateExpressions(item._e, keyedChunk._t._e)
+            if (keyedChunk._t !== item) (item as InternalTemplate).x?.()
+            item = keyedChunk._t
+          }
+          if (i > previousLength - 1) {
+            renderedList[i] = mountItem(item, updaterFrag!)
+            continue
+          }
+          const used = patch(item, prev, anchor) as Rendered
+          anchor = getNode(used)
+          renderedList[i] = used
+          previousToRemove.delete(used)
+        }
+        if (!renderableLength) {
+          getNode(previous[0]).after(
+            (renderedList[0] = document.createTextNode(''))
+          )
+        } else if (renderableLength > previousLength) {
+          anchor?.after(updaterFrag!)
+        }
+        previousToRemove.forEach((stale) => {
+          forgetChunk(stale)
+          unmount(stale)
+        })
+        previous = renderedList
       }
     } else {
-      /**
-       * Patching:
-       */
-      if (Array.isArray(renderable)) {
-        if (!Array.isArray(previous)) {
-          // Rendering a list where previously there was not a list.
-          const [fragment, newList] = renderList(renderable)
-          getNode(previous).after(fragment)
-          forgetChunk(previous)
-          unmount(previous)
-          previous = newList
-        } else {
-          // Patching a list.
-          let i = 0
-          const renderableLength = renderable.length
-          const previousLength = previous.length
-          let anchor: ChildNode | undefined
-          const renderedList: Rendered[] = []
-          const previousToRemove = new Set(previous)
-          if (renderableLength > previousLength) {
-            updaterFrag ??= document.createDocumentFragment()
-          }
-          // We need to re-render a list, to do this we loop over every item in
-          // our *updated* list and patch those items against what previously
-          // was at that index - with 3 exceptions:
-          //   1. This is a keyed item, in which case we need use the memoized
-          //      keyed chunks to find the previous item.
-          //   2. This is a new item, in which case we need to create a new one.
-          //   3. This is an item that as a memo key, if that memo key matches
-          //      the previous item, we perform no operation at all.
-          for (; i < renderableLength; i++) {
-            let item:
-              | string
-              | number
-              | boolean
-              | ComponentCall
-              | ArrowTemplate = renderable[
-              i
-            ] as ArrowTemplate
-            const prev: Rendered | undefined = previous[i]
-            let key: ArrowTemplateKey
-            if (
-              isTpl(item) &&
-              (key = item._k) !== undefined &&
-              key in keyedChunks
-            ) {
-              const keyedChunk = keyedChunks[key]
-              // This is a keyed item, so update the expressions and then
-              // used the keyed chunk instead.
-              updateExpressions(item._e, keyedChunk._t._e)
-              if (keyedChunk._t !== item) (item as InternalTemplate).x?.()
-              item = keyedChunk._t
-            }
-            if (i > previousLength - 1) {
-              renderedList[i] = mountItem(item, updaterFrag!)
-              continue
-            }
-            const used = patch(item, prev, anchor) as Rendered
-            anchor = getNode(used)
-            renderedList[i] = used
-            previousToRemove.delete(used)
-          }
-          if (!renderableLength) {
-            getNode(previous[0]).after(
-              (renderedList[0] = document.createTextNode(''))
-            )
-          } else if (renderableLength > previousLength) {
-            anchor?.after(updaterFrag!)
-          }
-          previousToRemove.forEach((stale) => {
-            forgetChunk(stale)
-            unmount(stale)
-          })
-          previous = renderedList
-        }
-      } else {
-        previous = patch(renderable, previous)
-      }
+      previous = patch(renderable, previous)
     }
+  } as RenderController
+
+  render.adopt = (map: NodeMap, visited: WeakSet<Chunk>) => {
+    if (!capture) return
+    previous = adoptRenderedValue(previous, capture, map, visited) as
+      | Chunk
+      | Text
+      | Rendered[]
   }
 
-  /**
-   * A utility function that renders an array of items for the first time.
-   * @param renderable - A renderable that is an array of items.
-   * @returns
-   */
   function renderList(
     renderable: Array<string | number | boolean | ComponentCall | ArrowTemplate>,
   ): [DocumentFragment, Rendered[]] {
     const fragment = document.createDocumentFragment()
-    if (renderable.length === 0) {
+    if (!renderable.length) {
       const placeholder = document.createTextNode('')
       fragment.appendChild(placeholder)
       return [fragment, [placeholder]]
     }
-    const renderedItems: Rendered[] = []
-    renderedItems.length = renderable.length
+    const renderedItems: Rendered[] = new Array(renderable.length)
     for (let i = 0; i < renderable.length; i++) {
       renderedItems[i] = mountItem(renderable[i], fragment)
     }
     return [fragment, renderedItems]
   }
 
-  /**
-   * Updates, replaces, or initially renders a node or chunk.
-   * @param renderable - The new renderable value.
-   * @param prev - The previous node or chunk in this position.
-   * @returns
-   */
   function patch(
     renderable: Exclude<
       ArrowRenderable,
@@ -651,12 +499,11 @@ function createRenderFn(): RenderController {
     prev: Chunk | Text | Rendered[],
     anchor?: ChildNode
   ): Chunk | Text | Rendered[] {
-    // This is an update:
     const nodeType = (prev as Node).nodeType ?? 0
     if (isCmp(renderable)) {
       const key = renderable.k
       if (key !== undefined && key in keyedChunks) {
-                const keyedChunk = keyedChunks[key]
+        const keyedChunk = keyedChunks[key]
         if (keyedChunk.s?.[1] === renderable.h) {
           if (keyedChunk.s[0] !== renderable.p) keyedChunk.s[0] = renderable.p
           if (keyedChunk === prev) return prev
@@ -683,11 +530,13 @@ function createRenderFn(): RenderController {
       unmount(prev)
       if (chunk.k !== undefined) keyedChunks[chunk.k] = chunk
       return chunk
-    } else if (!isTpl(renderable) && nodeType === 3) {
+    }
+    if (!isTpl(renderable) && nodeType === 3) {
       const value = renderText(renderable)
-      if ((prev as Text).data != value) (prev as Text).data = value
+      if ((prev as Text).data !== value) (prev as Text).data = value
       return prev
-    } else if (isTpl(renderable)) {
+    }
+    if (isTpl(renderable)) {
       const chunk = renderable._c()
       if (chunk.k !== undefined && chunk.k in keyedChunks) {
         const keyedChunk = keyedChunks[chunk.k]
@@ -700,18 +549,13 @@ function createRenderFn(): RenderController {
         }
         return keyedChunk
       } else if (isChunk(prev) && prev.paths === chunk.paths) {
-        // This is a template that has already been rendered, so we only need to
-        // update the expressions
         updateExpressions(chunk._t._e, prev._t._e)
         if (chunk._t !== prev._t) (chunk._t as InternalTemplate).x?.()
         return prev
       }
-
-      // This is a new template, render it
       getNode(prev, anchor).after(renderable())
       forgetChunk(prev)
       unmount(prev)
-      // If this chunk had a key, set it in our keyed chunks.
       if (chunk.k !== undefined) keyedChunks[chunk.k] = chunk
       return chunk
     }
@@ -731,7 +575,8 @@ function createRenderFn(): RenderController {
       fragment.appendChild(inner)
       if (chunk.k !== undefined) keyedChunks[chunk.k] = chunk
       return chunk
-    } else if (isTpl(item)) {
+    }
+    if (isTpl(item)) {
       fragment.appendChild(item())
       const chunk = item._c()
       if (chunk.k !== undefined) keyedChunks[chunk.k] = chunk
@@ -771,13 +616,6 @@ function createRenderFn(): RenderController {
     return [fragment, chunk]
   }
 
-  render.adopt = (map: NodeMap, visited: WeakSet<Chunk>) => {
-    previous = adoptRenderedValue(previous, map, visited) as
-      | Chunk
-      | Text
-      | Rendered[]
-  }
-
   return render
 }
 
@@ -805,7 +643,7 @@ const queueUnmount = queue(() => {
       if (node) {
         const last = chunk.ref.l
         if (node === last) node.remove()
-        else
+        else {
           while (node) {
             const next: ChildNode | null =
               node === last ? null : (node.nextSibling as ChildNode | null)
@@ -813,6 +651,7 @@ const queueUnmount = queue(() => {
             if (!next) break
             node = next
           }
+        }
       }
       ;(chunk._t as InternalTemplate).d?.()
     } else if (Array.isArray(chunk)) {
@@ -826,9 +665,6 @@ const queueUnmount = queue(() => {
   for (let i = 0; i < stack.length; i++) removeItems(stack[i])
 })
 
-/**
- * Unmounts a chunk from the DOM or a Text node from the DOM
- */
 function unmount(
   chunk:
     | Chunk
@@ -842,12 +678,6 @@ function unmount(
   queueUnmount()
 }
 
-/**
- * Determines if a value is considered empty in the context of rendering a
- * Text node vs a comment placeholder.
- * @param value - Any value that can be considered empty.
- * @returns
- */
 function isEmpty(value: unknown): value is null | undefined | '' | false {
   return !value && value !== 0
 }
@@ -856,12 +686,6 @@ function renderText(value: unknown) {
   return isEmpty(value) ? '' : (value as string)
 }
 
-/**
- * Determines what the last node from the last render is so we can append items
- * after it.
- * @param chunk - The previous chunk or Text node that was rendered.
- * @returns
- */
 function getNode(
   chunk: Chunk | Text | Array<Chunk | Text> | undefined,
   anchor?: ChildNode,
@@ -870,7 +694,8 @@ function getNode(
   if (!chunk && anchor) return anchor
   if (isChunk(chunk)) {
     return first ? chunk.ref.f || chunk.ref.l! : chunk.ref.l || chunk.ref.f || anchor!
-  } else if (Array.isArray(chunk)) {
+  }
+  if (Array.isArray(chunk)) {
     return getNode(chunk[first ? 0 : chunk.length - 1], anchor, first)
   }
   return chunk!
@@ -878,80 +703,55 @@ function getNode(
 
 function adoptRenderedValue(
   value: Chunk | Text | Rendered[] | undefined,
+  capture: HydrationCapture,
   map: NodeMap,
   visited: WeakSet<Chunk>
 ): Chunk | Text | Rendered[] | undefined {
   if (!value) return value
   if (isChunk(value)) {
-    adoptChunk(value, map, visited)
+    adoptCapturedChunk(capture, value, map, visited)
     return value
   }
   if (Array.isArray(value)) {
-    return value.map((item) => adoptRenderedValue(item, map, visited)) as Rendered[]
+    return value.map((item) =>
+      adoptRenderedValue(item, capture, map, visited)
+    ) as Rendered[]
   }
   return (map.get(value) as Text | undefined) ?? value
 }
 
-export function adoptChunk(
-  chunk: Chunk,
-  map: WeakMap<Node, Node>,
-  visited: WeakSet<Chunk>
-) {
-  if (visited.has(chunk)) return
-  visited.add(chunk)
-  chunk.ref.adopt(map)
-  chunk._h?.forEach((hook) => hook.adopt(map, visited))
-}
-
-/**
- * Creates a new Chunk object and memoizes it.
- * @param rawStrings - Initialize the chunk and memoize it.
- * @param memoKey - The key to memoize the chunk under.
- * @returns
- */
-/**
- * Given a string of raw interlaced HTML (the arrow comments are already in the
- * approximately correct place), produce a Chunk object and memoize it.
- * @param html - A raw string of HTML
- * @returns
- */
 export function createChunk(
   rawStrings: TemplateStringsArray | string[]
 ): Omit<Chunk, 'ref'> & { ref: DOMRef } {
-  const memoKey = rawStrings.join(delimiterComment)
+  const cachedByRef = chunkMemoByRef.get(rawStrings)
   const memoized: ChunkProto =
-    chunkMemo[memoKey] ??
+    cachedByRef ??
     (() => {
-      const tpl = document.createElement('template')
-      tpl.innerHTML = memoKey
-      return (chunkMemo[memoKey] = {
-        html: memoKey,
-        paths: createPaths(tpl.content),
-      })
+      const memoKey = rawStrings.join(delimiterComment)
+      const cached = chunkMemo[memoKey]
+      if (cached) {
+        chunkMemoByRef.set(rawStrings, cached)
+        return cached
+      }
+      const template = document.createElement('template')
+      template.innerHTML = memoKey
+      const created = {
+        template,
+        paths: createPaths(template.content),
+      }
+      chunkMemoByRef.set(rawStrings, created)
+      return (chunkMemo[memoKey] = created)
     })()
-  const tpl = document.createElement('template')
-  tpl.innerHTML = memoized.html
-  const dom = tpl.content
+  const dom = memoized.template.content.cloneNode(true) as DocumentFragment
   const instance = Object.create(memoized) as Omit<Chunk, 'ref'> & { ref: DOMRef }
   instance.dom = dom
   instance.ref = {
     f: dom.firstChild as ChildNode | null,
     l: dom.lastChild as ChildNode | null,
-    adopt(map) {
-      if (this.f) this.f = (map.get(this.f) as ChildNode | undefined) ?? this.f
-      if (this.l) this.l = (map.get(this.l) as ChildNode | undefined) ?? this.l
-    },
   }
   return instance
 }
 
-/**
-/**
- * Given a document fragment with expressions comments, produce an array of
- * binding instructions to the expressions and attribute expressions.
- * @param dom - A DocumentFragment to locate expressions in.
- * @returns
- */
 export function createPaths(dom: DocumentFragment): Chunk['paths'] {
   const pathTape: number[] = []
   const attrNames: string[] = []
@@ -962,10 +762,7 @@ export function createPaths(dom: DocumentFragment): Chunk['paths'] {
     const previousLen = previous.length
     const limit = pathLen < previousLen ? pathLen : previousLen
     let sharedDepth = 0
-    while (
-      sharedDepth < limit &&
-      previous[sharedDepth] === path[sharedDepth]
-    ) {
+    while (sharedDepth < limit && previous[sharedDepth] === path[sharedDepth]) {
       sharedDepth++
     }
     pathTape.push(sharedDepth, pathLen - sharedDepth)
@@ -1000,19 +797,12 @@ export function createPaths(dom: DocumentFragment): Chunk['paths'] {
   return [pathTape, attrNames]
 }
 
-/**
- * Returns a path to a DOM node.
- * @param node - A DOM node (within a fragment) to return a path for
- * @returns
- */
 export function getPath(node: Node): number[] {
   const path: number[] = []
   while (node.parentNode) {
-    const children = node.parentNode.childNodes as NodeList
-    const len = children.length
-    for (let i = 0; i < len; i++) {
-      const child = children[i]
-      if (child === node) {
+    const children = node.parentNode.childNodes
+    for (let i = 0; i < children.length; i++) {
+      if (children[i] === node) {
         path.unshift(i)
         break
       }

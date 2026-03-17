@@ -2,6 +2,10 @@ import { html, reactive, nextTick, ArrowTemplate } from '..'
 import { click, setValue } from './utils/events'
 import { describe, it, expect, vi } from 'vitest'
 import { createChunk, getPath } from '../html'
+import {
+  createHydrationCapture,
+  installHydrationCaptureProvider,
+} from '../internal'
 interface User {
   name: string
   id: number
@@ -62,6 +66,29 @@ describe('createChunk', () => {
       [0, 1, 0, 1, 1, 0, 2, 1, 1, 0, 0, 1, 1, 1, 3, 2, 0, 4, 2, 1, 0, 0],
       ['data-foo', 'hidden', 'class', 'style'],
     ])
+  })
+})
+
+describe('hydration capture', () => {
+  it('records adoption hooks only when a capture provider is active', () => {
+    const template = html`<button @click="${() => {}}">probe</button>`
+    const inactiveRoot = document.createElement('div')
+
+    template(inactiveRoot)
+
+    const capture = createHydrationCapture()
+    installHydrationCaptureProvider(() => capture)
+    try {
+      const activeTemplate = html`<button @click="${() => {}}">probe</button>`
+      const activeRoot = document.createElement('div')
+
+      activeTemplate(activeRoot)
+
+      expect(capture.hooks.get(template._c())).toBeUndefined()
+      expect(capture.hooks.get(activeTemplate._c())?.length).toBeGreaterThan(0)
+    } finally {
+      installHydrationCaptureProvider(null)
+    }
   })
 })
 
@@ -294,6 +321,38 @@ describe('html', () => {
     expect(parent.innerHTML).toBe('Hello <div>World</div>')
   })
 
+  it('upgrades reactive text bindings to structured renderables and back', async () => {
+    const data = reactive({ active: false })
+    const parent = document.createElement('div')
+
+    html`<div><span>before</span>${() =>
+      data.active ? html`<strong>after</strong>` : 'text'}<em>end</em></div>`(
+      parent
+    )
+
+    const before = parent.querySelector('span')
+    const end = parent.querySelector('em')
+    expect(parent.innerHTML).toBe(
+      '<div><span>before</span>text<em>end</em></div>'
+    )
+
+    data.active = true
+    await nextTick()
+    expect(parent.innerHTML).toBe(
+      '<div><span>before</span><strong>after</strong><em>end</em></div>'
+    )
+    expect(parent.querySelector('span')).toBe(before)
+    expect(parent.querySelector('em')).toBe(end)
+
+    data.active = false
+    await nextTick()
+    expect(parent.innerHTML).toBe(
+      '<div><span>before</span>text<em>end</em></div>'
+    )
+    expect(parent.querySelector('span')).toBe(before)
+    expect(parent.querySelector('em')).toBe(end)
+  })
+
   it('can render a simple non-reactive list', async () => {
     const data = reactive({ list: ['a', 'b', 'c'] })
     const parent = document.createElement('div')
@@ -355,6 +414,27 @@ describe('html', () => {
       .querySelectorAll('li')
       .forEach((el) => listValues.push(el.textContent!))
     expect(listValues).toEqual(['a', 'foo', 'c'])
+  })
+
+  it('reuses non-keyed nodes when a same-length list updates static values', async () => {
+    const data = reactive({
+      list: [{ value: 'a' }, { value: 'b' }, { value: 'c' }],
+    })
+    const parent = document.createElement('div')
+    html`<ul>
+      ${() => data.list.map((item) => html`<li>${item.value}</li>`)}
+    </ul>`(parent)
+
+    const before = [...parent.querySelectorAll('li')]
+    data.list[1].value = 'next'
+    await nextTick()
+    const after = [...parent.querySelectorAll('li')]
+
+    expect(after).toHaveLength(3)
+    expect(after[0]).toBe(before[0])
+    expect(after[1]).toBe(before[1])
+    expect(after[2]).toBe(before[2])
+    expect(after[1]?.textContent).toBe('next')
   })
 
   it('can render an empty list, render some items, remove the items, and render some again', async () => {
@@ -846,6 +926,55 @@ describe('html', () => {
     setValue(parent.querySelector('input'), 'pizza')
     await nextTick()
     expect(parent.innerHTML).toBe('<input type="text">pizza')
+  })
+
+  it('preserves currentTarget for shared event handlers', () => {
+    const parent = document.createElement('div')
+    const handler = vi.fn((event: Event) => event.currentTarget)
+    html`<button @click="${handler}">probe</button>`(parent)
+    const button = parent.querySelector('button') as HTMLButtonElement
+    click(button)
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler.mock.results[0]?.value).toBe(button)
+  })
+
+  it('honors stopPropagation with delegated bubbling handlers', () => {
+    const parent = document.createElement('div')
+    const outer = vi.fn()
+    const inner = vi.fn((event: Event) => event.stopPropagation())
+
+    html`<div @click="${outer}"><button @click="${inner}">probe</button></div>`(
+      parent
+    )
+
+    click(parent.querySelector('button') as HTMLButtonElement)
+    expect(inner).toHaveBeenCalledTimes(1)
+    expect(outer).toHaveBeenCalledTimes(0)
+  })
+
+  it('updates shared event handlers when a reused node changes templates', async () => {
+    const parent = document.createElement('div')
+    const first = vi.fn()
+    const second = vi.fn()
+    const data = reactive({ active: 'first' as 'first' | 'second' })
+
+    html`${() =>
+      data.active === 'first'
+        ? html`<button @click="${first}">probe</button>`
+        : html`<button @click="${second}">probe</button>`}`(parent)
+
+    const button = parent.querySelector('button') as HTMLButtonElement
+    click(button)
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(0)
+
+    data.active = 'second'
+    await nextTick()
+    expect(parent.querySelector('button')).toBe(button)
+
+    click(button)
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(1)
   })
 
   it('sets the IDL value attribute on input elements', async () => {

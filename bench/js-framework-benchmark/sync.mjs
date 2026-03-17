@@ -1,5 +1,5 @@
-import { ensureBenchmarkRepo, syncArrowLocal } from './lib.mjs'
+import { ensureBenchmarkRepo, syncArrowBenchmark } from './lib.mjs'
 
 ensureBenchmarkRepo()
-syncArrowLocal()
-console.log('Synced local Arrow into js-framework-benchmark')
+syncArrowBenchmark()
+console.log('Synced compiled Arrow into the official js-framework-benchmark Arrow entry')

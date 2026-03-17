@@ -13,7 +13,6 @@ const data = reactive({
 })
 
 const nestedCount: number = data.count
-
 // @ts-expect-error computed values unwrap to their resolved type
 const invalidNestedCount: string = data.count
 

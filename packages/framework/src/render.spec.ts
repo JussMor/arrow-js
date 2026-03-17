@@ -298,6 +298,45 @@ describe('framework hydrate', () => {
     expect(root.querySelector('#serialized-request')?.textContent).toBe('Loaded guide')
   })
 
+  it('keeps hydration captures isolated across concurrent async roots', async () => {
+    const createView = (prefix: string) => {
+      const AsyncCounter = component(async () => {
+        await delay()
+        return prefix
+      }, {
+        render: (value) => html`<span id="${`${value}-probe`}">${value}</span>`,
+      })
+
+      return html`<section>${AsyncCounter()}</section>`
+    }
+
+    const leftRoot = document.createElement('div')
+    const rightRoot = document.createElement('div')
+    const leftSsr = await renderToString(createView('left'))
+    const rightSsr = await renderToString(createView('right'))
+
+    leftRoot.innerHTML = leftSsr.html
+    rightRoot.innerHTML = rightSsr.html
+
+    const existingLeft = leftRoot.querySelector('#left-probe')
+    const existingRight = rightRoot.querySelector('#right-probe')
+
+    expect(leftSsr.html).toContain('left-probe')
+    expect(rightSsr.html).toContain('right-probe')
+
+    const [left, right] = await Promise.all([
+      hydrate(leftRoot, createView('left'), leftSsr.payload),
+      hydrate(rightRoot, createView('right'), rightSsr.payload),
+    ])
+
+    expect(left.adopted).toBe(true)
+    expect(right.adopted).toBe(true)
+    expect(leftRoot.querySelector('#left-probe')).toBe(existingLeft)
+    expect(rightRoot.querySelector('#right-probe')).toBe(existingRight)
+    expect(leftRoot.querySelector('#left-probe')?.textContent).toBe('left')
+    expect(rightRoot.querySelector('#right-probe')?.textContent).toBe('right')
+  })
+
   it('repairs a missing middle subtree without remounting later components', async () => {
     const root = document.createElement('div')
 

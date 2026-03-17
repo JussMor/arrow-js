@@ -1,6 +1,7 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readdir } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import { execa } from 'execa'
 import chalk from 'chalk'
 
@@ -13,7 +14,7 @@ const __dirname = dirname(__filename)
 const rootDir = resolve(__dirname, '../')
 
 async function clean() {
-  await execa('shx', ['rm', '-rf', `${rootDir}/dist`])
+  await rm(`${rootDir}/dist`, { force: true, recursive: true })
 }
 
 async function rollupBuild(build) {
@@ -26,7 +27,7 @@ async function removeArtifacts() {
   const files = (await readdir(`${rootDir}/dist`))
     .filter((file) => file.endsWith('.d.ts') && !file.startsWith('index.'))
     .map((file) => `${rootDir}/dist/${file}`)
-  if (files.length) await execa('shx', ['rm', ...files])
+  await Promise.all(files.map((file) => rm(file, { force: true })))
 }
 
 ;(async () => {

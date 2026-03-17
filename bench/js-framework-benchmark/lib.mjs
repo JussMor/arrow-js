@@ -20,10 +20,10 @@ export const benchmarkRepoDir =
   resolve(rootDir, `.cache/js-framework-benchmark-${benchmarkTag}`)
 export const benchmarkRepoUrl =
   'https://github.com/krausest/js-framework-benchmark.git'
-export const benchmarkFrameworkName = 'arrowjs-local'
 export const benchmarkBuildZipUrl =
   process.env.JS_FRAMEWORK_BENCHMARK_BUILD_URL ??
   `https://github.com/krausest/js-framework-benchmark/releases/download/${benchmarkTag}/build.zip`
+
 const benchmarkBuildZipPath = join(benchmarkRepoDir, 'build.zip')
 const benchmarkBuildMarker = join(
   benchmarkRepoDir,
@@ -42,7 +42,9 @@ export function run(command, args, options = {}) {
 }
 
 export function getVersionLabel() {
-  const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8'))
+  const pkg = JSON.parse(
+    readFileSync(join(rootDir, 'packages', 'core', 'package.json'), 'utf8')
+  )
   const sha = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
     cwd: rootDir,
     encoding: 'utf8',
@@ -86,660 +88,157 @@ export function ensureBenchmarkRepo({ install = false } = {}) {
 }
 
 function frameworkDir(keyed) {
-  return join(
-    benchmarkRepoDir,
-    'frameworks',
-    keyed ? 'keyed' : 'non-keyed',
-    benchmarkFrameworkName
-  )
+  return join(benchmarkRepoDir, 'frameworks', keyed ? 'keyed' : 'non-keyed', 'arrowjs')
 }
 
-function packageJson(version) {
-  return JSON.stringify(
-    {
-      name: `js-framework-benchmark-${benchmarkFrameworkName}`,
-      version: '1.0.0',
-      description: 'ArrowJS local benchmark adapter',
-      'js-framework-benchmark': {
-        frameworkVersion: version,
-        frameworkHomeURL: 'https://www.arrow-js.com/',
-      },
-      scripts: {
-        dev: 'exit 0',
-        'build-prod': 'exit 0',
-      },
-      keywords: ['arrowjs'],
-      author: 'Arrow local benchmark adapter',
-      license: 'MIT',
-      homepage: 'https://github.com/justin-schroeder/arrow',
-      repository: {
-        type: 'git',
-        url: 'https://github.com/justin-schroeder/arrow.git',
-      },
-    },
-    null,
-    2
-  )
-}
+function createArrowMainSource(keyed) {
+  const title = keyed ? 'Arrowjs (keyed)' : 'Arrowjs (Non-keyed)'
+  const rows = keyed
+    ? `() =>
+        data.items.map((row) => {
+          const id = row.id
+          return html\`<tr class="\${() => data.selected === id ? 'danger' : ''}">
+            <td class="col-md-1">\${id}</td>
+            <td class="col-md-4">
+              <a @click="\${() => select(id)}">\${() => row.label}</a>
+            </td>
+            <td class="col-md-1">
+              <a @click="\${() => remove(id)}">
+              <span class="glyphicon glyphicon-remove" aria-hidden="true" />
+              </a>
+            </td>
+            <td class="col-md-6"/>
+          </tr>\`.key(id)
+        })`
+    : `() =>
+        data.items.map((row) => {
+          const id = row.id
+          return html\`<tr class="\${() => data.selected === id ? 'danger' : ''}">
+            <td class="col-md-1">\${id}</td>
+            <td class="col-md-4">
+              <a @click="\${() => select(id)}">\${() => row.label}</a>
+            </td>
+            <td class="col-md-1">
+              <a @click="\${() => remove(id)}">
+              <span class="glyphicon glyphicon-remove" aria-hidden="true" />
+              </a>
+            </td>
+            <td class="col-md-6"/>
+          </tr>\`
+        })`
+  return `import { reactive, html } from './arrow.js';
+let data = reactive({
+  items: [],
+  selected: undefined,
+});
 
-function packageLockJson() {
-  return JSON.stringify(
-    {
-      name: `js-framework-benchmark-${benchmarkFrameworkName}`,
-      version: '1.0.0',
-      lockfileVersion: 3,
-      requires: true,
-      packages: {
-        '': {
-          name: `js-framework-benchmark-${benchmarkFrameworkName}`,
-          version: '1.0.0',
-          license: 'MIT',
-        },
-      },
-    },
-    null,
-    2
-  )
-}
+let rowId = 1;
+const add = () => data.items = data.items.concat(buildData(1000)),
+  clear = () => {
+    data.items = [];
+    data.selected = undefined;
+  },
+  partialUpdate = () => {
+    for (let i = 0; i < data.items.length; i += 10) {
+      data.items[i].label += ' !!!';
+    }
+  },
+  remove = (num) => {
+    const idx = data.items.findIndex(d => d.id === num);
+    data.items.splice(idx, 1);
+  },
+  run = () => {
+    data.items = buildData(1000);
+    data.selected = undefined;
+  },
+  runLots = () => {
+    data.items = buildData(10000);
+    data.selected = undefined;
+  },
+  select = (id) => data.selected = id,
+  swapRows = () => {
+    if (data.items.length > 998) {
+      data.items = [data.items[0], data.items[998], ...data.items.slice(2, 998), data.items[1], data.items[999]];
+    }
+  };
 
-function indexHtml(keyed) {
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>ArrowJS Local ${keyed ? 'Keyed' : 'Non-Keyed'}</title>
-    <link href="/css/currentStyle.css" rel="stylesheet" />
-    <span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true"></span>
-  </head>
-  <body>
-    <div id="arrow"></div>
-    <script type="module" src="src/Main.js"></script>
-  </body>
-</html>
-`
-}
-
-function mainJs(keyed) {
-  const labelSuffix = keyed ? 'Keyed' : 'Non-Keyed'
-  if (keyed) {
-    return `import { html } from './arrow.js'
-
-const adjectives = [
-  'pretty',
-  'large',
-  'big',
-  'small',
-  'tall',
-  'short',
-  'long',
-  'handsome',
-  'plain',
-  'quaint',
-  'clean',
-  'elegant',
-  'easy',
-  'angry',
-  'crazy',
-  'helpful',
-  'mushy',
-  'odd',
-  'unsightly',
-  'adorable',
-  'important',
-  'inexpensive',
-  'cheap',
-  'expensive',
-  'fancy',
-]
-const colours = [
-  'red',
-  'yellow',
-  'blue',
-  'green',
-  'pink',
-  'brown',
-  'purple',
-  'brown',
-  'white',
-  'black',
-  'orange',
-]
-const nouns = [
-  'table',
-  'chair',
-  'house',
-  'bbq',
-  'desk',
-  'car',
-  'pony',
-  'cookie',
-  'sandwich',
-  'burger',
-  'pizza',
-  'mouse',
-  'keyboard',
-]
-
-let rowId = 1
-let selectedRow
-let labelNodes = []
-let refsDirty = false
-
-const rowHead = '<tr><td class="col-md-1">'
-const rowHeadMid = '</td><td class="col-md-4"><a>'
-const rowTail =
-  '</a></td><td class="col-md-1"><a><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>'
-
-function createLabel() {
-  return (
-    adjectives[(Math.random() * adjectives.length) | 0] +
-    ' ' +
-    colours[(Math.random() * colours.length) | 0] +
-    ' ' +
-    nouns[(Math.random() * nouns.length) | 0]
-  )
-}
-
-function clearSelection() {
-  if (selectedRow && selectedRow.isConnected) selectedRow.className = ''
-  selectedRow = undefined
-}
-
-function clearRows() {
-  labelNodes = []
-  refsDirty = false
-  tbody.textContent = ''
-}
-
-function buildRowsHtml(count) {
-  let rows = ''
-  for (let i = 0; i < count; i++) {
-    const id = rowId++
-    const label = createLabel()
-    rows += rowHead + id + rowHeadMid + label + rowTail
-  }
-  return rows
-}
-
-function appendRows(count) {
-  table.hidden = true
-  tbody.insertAdjacentHTML('beforeend', buildRowsHtml(count))
-  table.hidden = false
-  refsDirty = true
-}
-
-function setRows(count) {
-  labelNodes = []
-  refsDirty = true
-  const detach = count > 1000 || !tbody.firstChild
-  if (detach) table.removeChild(tbody)
-  tbody.innerHTML = buildRowsHtml(count)
-  if (detach) table.appendChild(tbody)
-}
-
-function ensureLabelNodes() {
-  if (!refsDirty) return
-  const len = tbody.childElementCount
-  labelNodes = new Array(len)
-  let row = tbody.firstElementChild
-  for (let i = 0; i < len; i++) {
-    labelNodes[i] = row.children[1].firstChild.firstChild
-    row = row.nextElementSibling
-  }
-  refsDirty = false
-}
-
-function select(row) {
-  if (selectedRow === row) return
-  clearSelection()
-  selectedRow = row
-  row.className = 'danger'
-}
-
-function handleTableClick(evt) {
-  if (!(evt.target instanceof Element)) return
-  const actionNode = evt.target.closest('a')
-  if (!actionNode) return
-  const cell = actionNode.parentElement
-  const row = cell?.parentElement
-  if (!row) return
-  evt.preventDefault()
-  if (cell.cellIndex === 1) {
-    select(row)
-  } else if (cell.cellIndex === 2) {
-    remove(row)
-  }
-}
-
-function add() {
-  appendRows(1000)
-}
-
-function clear() {
-  clearSelection()
-  clearRows()
-}
-
-function partialUpdate() {
-  ensureLabelNodes()
-  for (let i = 0; i < labelNodes.length; i += 10) {
-    labelNodes[i].data += ' !!!'
-  }
-}
-
-function remove(row) {
-  if (selectedRow === row) selectedRow = undefined
-  row.remove()
-  labelNodes = []
-  refsDirty = true
-}
-
-function run() {
-  clearSelection()
-  setRows(1000)
-}
-
-function runLots() {
-  clearSelection()
-  setRows(10000)
-}
-
-function swapRows() {
-  const rows = tbody.children
-  if (rows.length <= 998) return
-  const left = rows[1]
-  const right = rows[998]
-  const afterLeft = left.nextSibling
-  const afterRight = right.nextSibling
-  tbody.insertBefore(right, afterLeft)
-  tbody.insertBefore(left, afterRight)
-  refsDirty = true
-}
-
-const root = document.getElementById('arrow')
-
-html\`<div class="container">
-  <div class="jumbotron">
-    <div class="row">
-      <div class="col-md-6">
-        <h1>ArrowJS Local (${labelSuffix})</h1>
-      </div>
-      <div class="col-md-6">
-        <div class="row">
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="run" @click="\${run}">
-              Create 1,000 rows
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="runlots" @click="\${runLots}">
-              Create 10,000 rows
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="add" @click="\${add}">
-              Append 1,000 rows
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="update" @click="\${partialUpdate}">
-              Update every 10th row
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="clear" @click="\${clear}">
-              Clear
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="swaprows" @click="\${swapRows}">
-              Swap Rows
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <table class="table table-hover table-striped test-data">
-    <tbody id="rows" @click="\${handleTableClick}"></tbody>
-  </table>
-</div>\`(root)
-
-const tbody = root.querySelector('#rows')
-const table = tbody.parentNode
-`
-  }
-  return `import { html } from './arrow.js'
-
-const adjectives = [
-  'pretty',
-  'large',
-  'big',
-  'small',
-  'tall',
-  'short',
-  'long',
-  'handsome',
-  'plain',
-  'quaint',
-  'clean',
-  'elegant',
-  'easy',
-  'angry',
-  'crazy',
-  'helpful',
-  'mushy',
-  'odd',
-  'unsightly',
-  'adorable',
-  'important',
-  'inexpensive',
-  'cheap',
-  'expensive',
-  'fancy',
-]
-const colours = [
-  'red',
-  'yellow',
-  'blue',
-  'green',
-  'pink',
-  'brown',
-  'purple',
-  'brown',
-  'white',
-  'black',
-  'orange',
-]
-const nouns = [
-  'table',
-  'chair',
-  'house',
-  'bbq',
-  'desk',
-  'car',
-  'pony',
-  'cookie',
-  'sandwich',
-  'burger',
-  'pizza',
-  'mouse',
-  'keyboard',
-]
-
-let rowId = 1
-let rows = []
-let selected
-const views = []
-const freeViews = []
-const slotIds = []
-const slotLabels = []
-const slotSelected = []
-const rowTemplate = document.createElement('template')
-rowTemplate.innerHTML =
-  '<tr><td class="col-md-1"></td><td class="col-md-4"><a data-action="select"></a></td><td class="col-md-1"><a data-action="remove"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>'
-
-function createLabel() {
-  return (
-    adjectives[(Math.random() * adjectives.length) | 0] +
-    ' ' +
-    colours[(Math.random() * colours.length) | 0] +
-    ' ' +
-    nouns[(Math.random() * nouns.length) | 0]
-  )
-}
+function _random(max) { return Math.round(Math.random() * 1000) % max; };
 
 function buildData(count = 1000) {
-  const nextRows = new Array(count)
-  for (let i = 0; i < count; i++) {
-    nextRows[i] = {
-      id: rowId++,
-      label: createLabel(),
-    }
-  }
-  return nextRows
+  const adjectives = ["pretty", "large", "big", "small", "tall", "short", "long", "handsome", "plain", "quaint", "clean", "elegant", "easy", "angry", "crazy", "helpful", "mushy", "odd", "unsightly", "adorable", "important", "inexpensive", "cheap", "expensive", "fancy"],
+    colours = ["red", "yellow", "blue", "green", "pink", "brown", "purple", "brown", "white", "black", "orange"],
+    nouns = ["table", "chair", "house", "bbq", "desk", "car", "pony", "cookie", "sandwich", "burger", "pizza", "mouse", "keyboard"],
+    data = new Array(count);
+  for (var i = 0; i < count; i++)
+    data[i] = { id: rowId++, label: adjectives[_random(adjectives.length)] + " " + colours[_random(colours.length)] + " " + nouns[_random(nouns.length)] };
+  return data;
 }
-
-function findIndexById(id) {
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i].id === id) return i
-  }
-  return -1
-}
-
-function eventRowId(row) {
-  return row ? +row.firstChild.textContent : -1
-}
-
-function createView(row, index) {
-  const view = freeViews.pop()
-  if (!view) {
-    const el = rowTemplate.content.firstChild.cloneNode(true)
-    const id = el.firstChild.appendChild(document.createTextNode(''))
-    const label = el.firstChild.nextSibling.firstChild.appendChild(
-      document.createTextNode('')
-    )
-    return patchView(
-      {
-        el,
-        id,
-        label,
-      },
-      row,
-      index
-    )
-  }
-  return patchView(view, row, index)
-}
-
-function patchView(view, row, index) {
-  const isSelected = row.id === selected
-  if (
-    slotIds[index] === row.id &&
-    slotLabels[index] === row.label &&
-    slotSelected[index] === isSelected
-  ) {
-    return
-  }
-  slotIds[index] = row.id
-  slotLabels[index] = row.label
-  slotSelected[index] = isSelected
-  view.el.className = isSelected ? 'danger' : ''
-  view.id.data = '' + row.id
-  view.label.data = row.label
-  return view
-}
-
-function syncViews(start = 0) {
-  for (let i = start; i < rows.length; i++) {
-    const row = rows[i]
-    const view = views[i] ?? (views[i] = createView(row, i))
-    patchView(view, row, i)
-  }
-}
-
-function replaceRows(nextRows) {
-  const previousLength = views.length
-  rows = nextRows
-  syncViews(0)
-  if (rows.length > previousLength) {
-    previousLength ? mountViews(previousLength) : batchDOM(() => mountViews(0))
-    return
-  }
-  if (rows.length < previousLength) trimViews(rows.length)
-}
-
-function add() {
-  const start = rows.length
-  const nextRows = buildData(1000)
-  for (let i = 0; i < nextRows.length; i++) rows.push(nextRows[i])
-  syncViews(start)
-  mountViews(start)
-}
-
-function clear() {
-  if (views.length) {
-    rows = []
-    selected = undefined
-    slotIds.length = 0
-    slotLabels.length = 0
-    slotSelected.length = 0
-    while (views.length) freeViews.push(views.pop())
-    tbody.textContent = ''
-  }
-}
-
-function partialUpdate() {
-  for (let i = 0; i < rows.length; i += 10) {
-    rows[i].label += ' !!!'
-    patchView(views[i], rows[i], i)
-  }
-}
-
-function remove(id) {
-  const index = findIndexById(id)
-  if (index < 0) return
-  rows.splice(index, 1)
-  if (selected === id) selected = undefined
-  for (let i = index; i < rows.length; i++) {
-    patchView(views[i], rows[i], i)
-  }
-  trimViews(rows.length)
-}
-
-function run() {
-  selected = undefined
-  replaceRows(buildData(1000))
-}
-
-function runLots() {
-  selected = undefined
-  replaceRows(buildData(10000))
-}
-
-function swapRows() {
-  if (rows.length > 998) {
-    const left = rows[1]
-    rows[1] = rows[998]
-    rows[998] = left
-    patchView(views[1], rows[1], 1)
-    patchView(views[998], rows[998], 998)
-  }
-}
-
-function select(id) {
-  if (selected === id) return
-  const previous = findIndexById(selected)
-  selected = id
-  if (previous > -1) patchView(views[previous], rows[previous], previous)
-  const next = findIndexById(id)
-  if (next > -1) patchView(views[next], rows[next], next)
-}
-
 html\`<div class="container">
   <div class="jumbotron">
-    <div class="row">
-      <div class="col-md-6">
-        <h1>ArrowJS Local (${labelSuffix})</h1>
-      </div>
-      <div class="col-md-6">
-        <div class="row">
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="run" @click="\${run}">
-              Create 1,000 rows
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="runlots" @click="\${runLots}">
-              Create 10,000 rows
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="add" @click="\${add}">
-              Append 1,000 rows
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="update" @click="\${partialUpdate}">
-              Update every 10th row
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="clear" @click="\${clear}">
-              Clear
-            </button>
-          </div>
-          <div class="col-sm-6 smallpad">
-            <button type="button" class="btn btn-primary btn-block" id="swaprows" @click="\${swapRows}">
-              Swap Rows
-            </button>
-          </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h1>${title}</h1>
+    </div>
+    <div class="col-md-6">
+      <div class="row">
+        <div class="col-sm-6 smallpad">
+          <button type="button" class="btn btn-primary btn-block" id="run" @click="\${run}">Create 1,000 rows</button>
+        </div>
+        <div class="col-sm-6 smallpad">
+          <button type="button" class="btn btn-primary btn-block" id="runlots" @click="\${runLots}">Create 10,000
+            rows</button>
+        </div>
+        <div class="col-sm-6 smallpad">
+          <button type="button" class="btn btn-primary btn-block" id="add" @click="\${add}">Append 1,000 rows</button>
+        </div>
+        <div class="col-sm-6 smallpad">
+          <button type="button" class="btn btn-primary btn-block" id="update" @click="\${partialUpdate}">Update every
+            10th row</button>
+        </div>
+        <div class="col-sm-6 smallpad">
+          <button type="button" class="btn btn-primary btn-block" id="clear" @click="\${clear}">Clear</button>
+        </div>
+        <div class="col-sm-6 smallpad">
+          <button type="button" class="btn btn-primary btn-block" id="swaprows" @click="\${swapRows}">Swap Rows</button>
         </div>
       </div>
     </div>
   </div>
+  </div>
   <table class="table table-hover table-striped test-data">
-    <tbody id="rows"></tbody>
+    <tbody>
+      \${${rows}}
+    </tbody>
   </table>
-</div>\`(document.getElementById('arrow'))
-
-const tbody = document.getElementById('rows')
-tbody.addEventListener('click', (evt) => {
-  const link = evt.target.closest('a')
-  if (!link) return
-  const row = link.closest('tr')
-  const id = eventRowId(row)
-  if (id < 0) return
-  link.dataset.action === 'remove' ? remove(id) : select(id)
-})
-
-function batchDOM(work) {
-  const parent = tbody.parentNode
-  if (!parent) {
-    work()
-    return
-  }
-  const next = tbody.nextSibling
-  parent.removeChild(tbody)
-  work()
-  next ? parent.insertBefore(tbody, next) : parent.appendChild(tbody)
-}
-
-function mountViews(start) {
-  const fragment = document.createDocumentFragment()
-  for (let i = start; i < views.length; i++) {
-    fragment.appendChild(views[i].el)
-  }
-  tbody.appendChild(fragment)
-}
-
-function trimViews(length) {
-  slotIds.length = length
-  slotLabels.length = length
-  slotSelected.length = length
-  while (views.length > length) {
-    freeViews.push(views.pop())
-    tbody.lastElementChild.remove()
-  }
-}
+</div>
+\`(document.getElementById('arrow'))
 `
 }
 
-export function syncArrowLocal() {
-  const distFile = join(rootDir, 'dist', 'index.min.mjs')
+export function syncArrowBenchmark() {
+  const distFile = join(rootDir, 'packages', 'core', 'dist', 'index.min.mjs')
   if (!existsSync(distFile)) {
-    throw new Error('Missing dist/index.min.mjs. Run `pnpm build` first.')
+    throw new Error('Missing packages/core/dist/index.min.mjs. Run `pnpm build:runtime` first.')
   }
 
   const version = getVersionLabel()
+
   for (const keyed of [true, false]) {
     const targetDir = frameworkDir(keyed)
     const srcDir = join(targetDir, 'src')
+    const packagePath = join(targetDir, 'package.json')
+    const mainPath = join(srcDir, 'Main.js')
+
     mkdirSync(srcDir, { recursive: true })
     copyFileSync(distFile, join(srcDir, 'arrow.js'))
-    writeFileSync(join(targetDir, 'index.html'), indexHtml(keyed))
-    writeFileSync(join(targetDir, 'package.json'), `${packageJson(version)}\n`)
-    writeFileSync(join(targetDir, 'package-lock.json'), `${packageLockJson()}\n`)
-    writeFileSync(join(srcDir, 'Main.js'), mainJs(keyed))
+    writeFileSync(mainPath, createArrowMainSource(keyed))
+
+    if (existsSync(packagePath)) {
+      const pkg = JSON.parse(readFileSync(packagePath, 'utf8'))
+      pkg['js-framework-benchmark'] ??= {}
+      pkg['js-framework-benchmark'].frameworkVersion = version
+      pkg['js-framework-benchmark'].frameworkHomeURL = 'https://www.arrow-js.com/'
+      writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`)
+    }
   }
 }

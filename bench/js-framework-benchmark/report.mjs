@@ -35,7 +35,9 @@ for (const row of rows) {
     console.log(`\n${currentBenchmark}`)
   }
   console.log(
-    `${row.framework.padEnd(36)} mean=${row.mean.toFixed(1).padStart(6)} median=${row.median
+    `${row.framework.padEnd(36)} mean=${row.mean
+      .toFixed(1)
+      .padStart(6)} median=${row.median
       .toFixed(1)
       .padStart(6)}`
   )

@@ -114,6 +114,32 @@ describe('reactive', () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
+  it('supports multiple listeners on the same property and tears them down cleanly', async () => {
+    const data = reactive({
+      value: 'a',
+    })
+    const first = vi.fn()
+    const second = vi.fn()
+
+    data.$on('value', first)
+    data.$on('value', second)
+    data.value = 'b'
+    await nextTick()
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(1)
+
+    data.$off('value', first)
+    data.value = 'c'
+    await nextTick()
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(2)
+
+    data.$off('value', second)
+    data.value = 'd'
+    await nextTick()
+    expect(second).toHaveBeenCalledTimes(2)
+  })
+
   it('can track dependencies on shadow properties when they are lit up', async () => {
     const data = reactive({
       value: 0,

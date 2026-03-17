@@ -7,7 +7,7 @@ import {
   ensureBenchmarkRepo,
   rootDir,
   run,
-  syncArrowLocal,
+  syncArrowBenchmark,
 } from './lib.mjs'
 import { presetMap } from './presets.mjs'
 
@@ -88,7 +88,7 @@ process.on('SIGTERM', () => {
 try {
   ensureBenchmarkRepo({ install: true })
   run('pnpm', ['build:runtime'], { cwd: rootDir })
-  syncArrowLocal()
+  syncArrowBenchmark()
   rmSync(resultsDir, { recursive: true, force: true })
   mkdirSync(resultsDir, { recursive: true })
   server = spawn('npm', ['start'], {

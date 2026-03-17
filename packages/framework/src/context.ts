@@ -1,10 +1,12 @@
 import { nextTick } from '@arrow-js/core'
+import type { HydrationCapture } from '@arrow-js/core/internal'
 
 export interface RenderContext {
   pending: Set<Promise<unknown>>
   errors: unknown[]
   asyncSnapshots: Record<string, unknown>
   hydrationSnapshots: Record<string, unknown>
+  hydrationCapture: HydrationCapture | null
   componentIndex: number
   boundaryIndex: number
   boundaries: string[]
@@ -84,6 +86,7 @@ function createRenderContext(options: RenderContextOptions): RenderContext {
     errors: [],
     asyncSnapshots: {},
     hydrationSnapshots: { ...(options.hydrationSnapshots ?? {}) },
+    hydrationCapture: null,
     componentIndex: 0,
     boundaryIndex: 0,
     boundaries: [],

@@ -1,142 +1,172 @@
 # Arrow Performance Plan
 
-Date: March 11, 2026
+Date: March 16, 2026
 
 ## Goal
 
-Keep Arrow's public API intact while pushing toward:
+Arrow should deliver Solid-class performance without requiring a compile step.
+That means the public runtime, used as ordinary Arrow, needs to compete on:
 
-- less than `3 KB` brotli for the shipped ESM build
-- competitive `js-framework-benchmark` results
-- lower GC pressure during create, update, and teardown paths
+- initial create cost
+- repeated update cost
+- list diffing cost
+- memory churn and GC pressure
 
-## Benchmark Source
+## Benchmarking Rules
 
-- Latest official `js-framework-benchmark` release tag is `chrome145`.
-- `chrome145` is keyed-only.
-- `chrome142` is the latest release that still gives a clean keyed and non-keyed comparison set, so the local harness is pinned there for now.
+Performance claims must be honest.
 
-References:
+- Benchmarks use the official `js-framework-benchmark` Arrow entries only.
+- The local harness syncs this workspace's compiled runtime into those entries.
+- No manual-DOM adapters.
+- No benchmark-only DOM shortcuts outside the public Arrow runtime.
+- Any benchmark-facing optimization must be a real Arrow feature or runtime behavior.
 
-- <https://github.com/krausest/js-framework-benchmark>
-- <https://github.com/krausest/js-framework-benchmark/releases/tag/chrome145>
-- <https://github.com/krausest/js-framework-benchmark/releases/tag/chrome142>
+See [bench/js-framework-benchmark/README.md](/Users/justinschroeder/Projects/arrow/.dmux/worktrees/ssr-hydration/bench/js-framework-benchmark/README.md).
 
-## Current Guardrails
+## Current Honest Baseline
 
-- `pnpm test`
-- `pnpm typecheck`
-- `pnpm build`
-- size gate on `dist/index.min.mjs`
+Current branch-local runs using the official Arrow benchmark entries synced with
+this workspace's compiled runtime:
 
-Current size baseline:
+- `01_run1k`
+  - `solid-keyed`: `31.7 ms`
+  - `vue-keyed`: `37.3 ms`
+  - `vue-non-keyed`: `38.0 ms`
+  - `arrow-non-keyed`: `41.7 ms`
+  - `arrow-keyed`: `43.0 ms`
+- `02_replace1k`
+  - `vue-non-keyed`: `17.6 ms`
+  - `arrow-non-keyed`: `23.3 ms`
+  - `arrow-keyed`: `25.0 ms`
+  - `solid-keyed`: `37.5 ms`
+  - `vue-keyed`: `42.1 ms`
+- `03_update10th1k_x16`
+  - `solid-keyed`: `17.8 ms`
+  - `arrow-keyed`: `20.2 ms`
+  - `vue-keyed`: `20.7 ms`
+  - `vue-non-keyed`: `22.4 ms`
+  - `arrow-non-keyed`: `49.7 ms`
 
-- raw: `7682 B`
-- gzip: `3325 B`
-- brotli: `3032 B`
+This says:
 
-The hard build gate is currently brotli because that is the project target. Gzip is still reported because it remains useful as a secondary regression signal.
+- create cost is the primary remaining gap
+- keyed Arrow updates are already in striking distance
+- non-keyed partial updates need dedicated work
 
-## Benchmark Workflow
+## What Arrow Already Has
 
-Use the official benchmark repo out-of-tree under `.cache/`.
+The core runtime still contains legitimate performance machinery:
 
-Commands:
+- memory pooling
+- template/chunk memoization
+- keyed chunk reuse and movement
+- stable component prop-box reuse
+- fine-grained text/attr/event updates
 
-- `pnpm benchmark:setup`
-- `pnpm benchmark:sync`
-- `pnpm benchmark:smoke`
-- `pnpm benchmark:core`
-- `pnpm benchmark:breadth`
-- `pnpm benchmark:run -- ...` for custom runs
-
-`benchmark:setup` now downloads and unpacks the official `build.zip` for the
-pinned benchmark tag so the broader preset can run against the same prebuilt
-framework artifacts used by upstream release runs.
-
-## Benchmark Presets
-
-### Smoke
-
-Small harness check:
-
-- frameworks: local Arrow, published Arrow, Vanilla
-- benchmarks: `01_`
-
-### Core
-
-Short iteration loop:
-
-- frameworks:
-  - `keyed/arrowjs-local`
-  - `keyed/arrowjs`
-  - `keyed/vanillajs`
-  - `keyed/redom`
-  - `keyed/lit`
-  - `keyed/mithril`
-  - `keyed/solid`
-  - `non-keyed/arrowjs-local`
-  - `non-keyed/arrowjs`
-  - `non-keyed/vanillajs`
-  - `non-keyed/redom`
-  - `non-keyed/lit`
-  - `non-keyed/vue`
-  - `non-keyed/uhtml`
-- benchmarks:
-  - `01_` create rows
-  - `05_` swap rows
-  - `07_` create many rows
-  - `09_` clear rows
-
-### Breadth
-
-Wider comparison before bigger refactors:
-
-- all `core` frameworks plus:
-  - `keyed/preact-hooks`
-  - `keyed/vue`
-  - `non-keyed/mikado`
-- benchmarks:
-  - `01_` through `09_`
-
-## Baseline
-
-First measured local comparison on `01_run1k` with a single iteration:
-
-- `vanillajs-keyed`: `32.3 ms`
-- `vanillajs-non-keyed`: `32.5 ms`
-- `arrowjs-local-keyed`: `60.5 ms`
-- `arrowjs-local-non-keyed`: `57.6 ms`
-- published `arrowjs-keyed`: `99.9 ms`
-- published `arrowjs-non-keyed`: `100.5 ms`
-
-This means the current branch already cuts the older Arrow benchmark implementation roughly in half on row creation, but it is still well behind Vanilla.
+Those features matter more on update paths than on `01_run1k`, which is why the create benchmark is still the most painful one.
 
 ## Working Hypothesis
 
-The next wins are likely in:
+The biggest losses versus Solid and Vue are in:
 
-- per-row allocation count during initial mount
-- event binding overhead
-- fragment/chunk bookkeeping during list creation
-- reducing DOM operations that produce extra placeholder work
+- watcher and binding allocation count during initial mount
+- per-node event binding cost
+- path-walk and node lookup cost while applying bindings to cloned templates
+- closure creation inside repeated templates
+- generic runtime branching in hot create paths
 
-Reactivity scheduling is still important, but it does not look like the first-order bottleneck for `01_run1k`.
+## Optimization Tracks
+
+### 1. Event Handling
+
+Goal: remove large volumes of per-node listener setup from hot create paths.
+
+Candidates:
+
+- internal delegated event handling for bubbling events
+- shared listener stubs instead of fresh closure allocations where possible
+- event argument forms that avoid userland per-row closures, for example tuple-style action binding
+
+This is fair game because framework-internal delegation is allowed by the benchmark rules and useful in real apps.
+
+### 2. Binding Creation
+
+Goal: reduce the cost of mounting a cloned template instance.
+
+Candidates:
+
+- precompiled binding recipes per template shape
+- faster binding target lookup than the current generic path walk
+- pooled watcher/effect nodes
+- fewer temporary arrays and sets during first mount
+
+This is the most important track for `01_run1k` and `02_replace1k`.
+
+### 3. List Rendering
+
+Goal: make keyed and non-keyed list paths cheaper without turning Arrow into manual DOM code.
+
+Candidates:
+
+- lower-churn keyed bookkeeping during patch
+- list-oriented fast paths for homogeneous template arrays
+- reusable row/template instance pools
+- better fragment batching when appending large runs of new children
+
+### 4. Public Memo Primitives
+
+Goal: expose real optimizations users can choose when they know a subtree is stable.
+
+Candidates:
+
+- template memoization API for repeated rows or branches
+- keyed memo cells for stable list items
+- component memo semantics for stable props
+
+This is the Arrow equivalent of the rare but real `v-memo` class of optimization: explicit, honest, and available to users.
+
+### 5. Reactive Runtime
+
+Goal: cut observer overhead without weakening fine-grained semantics.
+
+Candidates:
+
+- smaller/faster dependency bookkeeping
+- effect pooling
+- cheaper computed invalidation paths
+- less cleanup work on stable remount/reuse paths
+
+## Novel Ideas Worth Exploring
+
+These are still honest because they would be part of Arrow itself, not benchmark-only code.
+
+- template-local memo cells: let a template remember the last inputs for a branch and skip deeper work when unchanged
+- event tuples: `@click=${[select, row.id]}` to avoid closure allocation in repeated trees
+- clone-time binding maps: pre-record the binding targets for a template and remap them linearly on clone
+- row-view pools driven by template identity rather than handwritten DOM views
 
 ## Iteration Order
 
-1. Keep the branch reproducible on modern Node with passing tests and a size gate.
-2. Use the official benchmark harness for every meaningful perf change.
-3. Keep the benchmark harness clean: hydrate release artifacts and clear stale results.
-4. Attack create-path allocations first.
-5. Re-run the `core` preset after each runtime change.
-6. Only widen to `breadth` once a change survives correctness, size, and the `core` benchmark slice.
+1. Keep benchmarks honest and branch-local.
+2. Build an apples-to-apples Arrow benchmark trace against Solid and Vue on `01`, `02`, and `03`.
+3. Attack event setup and binding creation first.
+4. Re-run `smoke` and targeted `01/02/03` after each change.
+5. Expand to `core` once a change survives correctness and size checks.
+6. Only then widen to `targets` and `breadth`.
 
-## First Runtime Pass
+## Success Criteria
 
-Start by removing avoidable benchmark-side allocations before deeper runtime work:
+Short term:
 
-- single delegated row-action listener in the benchmark adapter instead of
-  per-row select/remove closures
-- hoisted `buildData` dictionaries
-- then continue with core event binding and DOM creation hot paths inside Arrow
+- beat Vue 3 on most honest `core` benchmarks
+- materially close the gap on `01_run1k`
+
+Medium term:
+
+- beat Vue 3 consistently
+- trade with Solid on update-heavy cases
+
+Long term:
+
+- reach Solid-class results on the honest Arrow runtime without abandoning the no-build-step promise

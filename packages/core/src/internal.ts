@@ -1,4 +1,9 @@
 export { installAsyncComponentInstaller } from './component'
-export { adoptChunk } from './html'
+export {
+  adoptCapturedChunk,
+  createHydrationCapture,
+  installHydrationCaptureProvider,
+} from './hydration'
 
 export type { ArrowTemplate, ParentNode } from './html'
+export type { HydrationCapture } from './hydration'

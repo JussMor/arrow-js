@@ -1,11 +1,13 @@
-import { adoptChunk } from '@arrow-js/core/internal'
+import { adoptCapturedChunk } from '@arrow-js/core/internal'
 import type { ArrowTemplate, ParentNode as ArrowParentNode } from '@arrow-js/core/internal'
+import type { HydrationCapture } from '@arrow-js/core/internal'
 
 export interface HydrationStats {
   mismatches: number
 }
 
 export function hydrateTemplate(
+  capture: HydrationCapture,
   template: ArrowTemplate,
   parent: ArrowParentNode,
   sourceRoot?: ArrowParentNode,
@@ -20,7 +22,7 @@ export function hydrateTemplate(
   const hydration = createNodeMap(stage.childNodes, parent)
   if (!hydration) return false
 
-  adoptChunk(template._c(), hydration.map, new WeakSet())
+  adoptCapturedChunk(capture, template._c(), hydration.map)
   if (stats) stats.mismatches = hydration.mismatches
   stage.textContent = ''
   return true

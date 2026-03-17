@@ -53,7 +53,7 @@ export interface Component {
 }
 
 export interface ComponentWithProps<T extends ReactiveTarget> {
-  <S extends Props<T>>(props: S): ComponentCall
+  <S extends T>(props: S): ComponentCall
 }
 
 let asyncComponentInstaller: AsyncComponentInstaller | null = null
@@ -127,11 +127,9 @@ export function component<T extends ReactiveTarget, TValue, TSnapshot = TValue>(
   factory: SyncFactory<T> | AsyncFactory<T, TValue>,
   options?: AsyncComponentOptions<T, TValue, TSnapshot>
 ): Component | ComponentWithProps<T> {
-  if (isAsyncFactory(factory as CallableFunction)) {
+  if (options || factory instanceof AsyncFunction) {
     if (!asyncComponentInstaller) {
-      throw new Error(
-        'Async components require Arrow async runtime support. Import @arrow-js/framework, @arrow-js/ssr, or @arrow-js/hydrate before rendering.'
-      )
+      throw new Error('Import Arrow async runtime to use async components.')
     }
 
     return asyncComponentInstaller(
@@ -165,8 +163,4 @@ export function createPropsProxy(
 ): [Props<ReactiveTarget>, SourceBox] {
   const box = reactive({ 0: source, 1: factory })
   return [new Proxy(box, propsProxyHandler) as unknown as Props<ReactiveTarget>, box]
-}
-
-function isAsyncFactory(factory: CallableFunction) {
-  return factory instanceof AsyncFunction || factory.constructor?.name === 'AsyncFunction'
 }

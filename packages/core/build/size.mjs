@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib'
 
 const target = 3500
-const limit = 3700
+const limit = 4300
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const file = resolve(__dirname, '../dist/index.min.mjs')

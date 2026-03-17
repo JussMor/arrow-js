@@ -4,7 +4,13 @@ import { Reactive, PropertyObserver, ReactiveTarget } from './reactive'
 /**
  * A queue of expressions to run as soon as an async slot opens up.
  */
-const queueStack: Set<CallableFunction> = new Set()
+const queueMarker = Symbol('arrowQueued')
+type QueuedFunction = CallableFunction & {
+  [queueMarker]?: boolean
+  _n?: unknown
+  _o?: unknown
+}
+let queueStack: QueuedFunction[] = []
 /**
  * A stack of functions to run on the next tick.
  */
@@ -17,7 +23,7 @@ let cleanupCollector: Array<() => void> | null = null
  * @returns Promise
  */
 export function nextTick(fn?: CallableFunction): Promise<unknown> {
-  return !queueStack.size
+  return !queueStack.length
     ? Promise.resolve(fn?.())
     : new Promise((resolve: (value?: unknown) => void) =>
         nextTicks.push(() => {
@@ -53,26 +59,37 @@ export function isChunk(chunk: unknown): chunk is Chunk {
 export function queue<T extends unknown>(
   fn: PropertyObserver<T>
 ): PropertyObserver<T> {
+  const queued = fn as QueuedFunction
   return (newValue?: T, oldValue?: T) => {
-    function executeQueue() {
-      // copy the current queues and clear it to allow new items to be added
-      // during the execution of the current queue.
-      const queue = [...queueStack]
-      queueStack.clear()
-      const ticks = nextTicks
-      nextTicks = []
-      queue.forEach((fn) => fn(newValue, oldValue))
-      ticks.forEach((fn) => fn())
-      if (queueStack.size) {
-        // we received new items while executing the queue, so we need to
-        // execute the queue again.
+    if (!queued[queueMarker]) {
+      queued[queueMarker] = true
+      queued._n = newValue
+      queued._o = oldValue
+      if (!queueStack.length) {
         queueMicrotask(executeQueue)
       }
+      queueStack.push(queued)
     }
-    if (!queueStack.size) {
-      queueMicrotask(executeQueue)
-    }
-    queueStack.add(fn)
+  }
+}
+
+function executeQueue() {
+  const queue = queueStack
+  queueStack = []
+  const ticks = nextTicks
+  nextTicks = []
+  for (let i = 0; i < queue.length; i++) {
+    const fn = queue[i]
+    const newValue = fn._n
+    const oldValue = fn._o
+    fn._n = undefined
+    fn._o = undefined
+    fn[queueMarker] = false
+    fn(newValue, oldValue)
+  }
+  for (let i = 0; i < ticks.length; i++) ticks[i]()
+  if (queueStack.length) {
+    queueMicrotask(executeQueue)
   }
 }
 

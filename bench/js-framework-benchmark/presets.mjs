@@ -1,31 +1,25 @@
-import { benchmarkFrameworkName } from './lib.mjs'
-
-const localKeyed = `keyed/${benchmarkFrameworkName}`
-const localNonKeyed = `non-keyed/${benchmarkFrameworkName}`
+const officialKeyed = 'keyed/arrowjs'
+const officialNonKeyed = 'non-keyed/arrowjs'
 
 export const presetMap = {
   smoke: {
     frameworks: [
-      localKeyed,
-      'keyed/arrowjs',
+      officialKeyed,
       'keyed/vanillajs',
-      localNonKeyed,
-      'non-keyed/arrowjs',
+      officialNonKeyed,
       'non-keyed/vanillajs',
     ],
     benchmarks: ['01_'],
   },
   core: {
     frameworks: [
-      localKeyed,
-      'keyed/arrowjs',
+      officialKeyed,
       'keyed/vanillajs',
       'keyed/redom',
       'keyed/lit',
       'keyed/mithril',
       'keyed/solid',
-      localNonKeyed,
-      'non-keyed/arrowjs',
+      officialNonKeyed,
       'non-keyed/vanillajs',
       'non-keyed/redom',
       'non-keyed/lit',
@@ -36,11 +30,11 @@ export const presetMap = {
   },
   targets: {
     frameworks: [
-      localKeyed,
+      officialKeyed,
       'keyed/vanillajs',
       'keyed/solid',
       'keyed/vue',
-      localNonKeyed,
+      officialNonKeyed,
       'non-keyed/vanillajs',
       'non-keyed/vue',
     ],
@@ -48,8 +42,7 @@ export const presetMap = {
   },
   breadth: {
     frameworks: [
-      localKeyed,
-      'keyed/arrowjs',
+      officialKeyed,
       'keyed/vanillajs',
       'keyed/redom',
       'keyed/lit',
@@ -57,8 +50,7 @@ export const presetMap = {
       'keyed/solid',
       'keyed/preact-hooks',
       'keyed/vue',
-      localNonKeyed,
-      'non-keyed/arrowjs',
+      officialNonKeyed,
       'non-keyed/vanillajs',
       'non-keyed/redom',
       'non-keyed/lit',

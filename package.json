@@ -8,13 +8,22 @@
   },
   "scripts": {
     "dev": "pnpm --filter @arrow-js/docs dev",
+    "build:runtime": "pnpm --filter @arrow-js/core build:runtime",
     "build": "pnpm --filter @arrow-js/core build && pnpm --filter @arrow-js/docs build",
     "preview": "pnpm --filter @arrow-js/docs preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "install:browsers": "playwright install"
+    "install:browsers": "playwright install",
+    "benchmark:setup": "node bench/js-framework-benchmark/setup.mjs",
+    "benchmark:sync": "node bench/js-framework-benchmark/sync.mjs",
+    "benchmark:smoke": "node bench/js-framework-benchmark/run.mjs --preset smoke",
+    "benchmark:core": "node bench/js-framework-benchmark/run.mjs --preset core",
+    "benchmark:targets": "node bench/js-framework-benchmark/run.mjs --preset targets",
+    "benchmark:breadth": "node bench/js-framework-benchmark/run.mjs --preset breadth",
+    "benchmark:run": "node bench/js-framework-benchmark/run.mjs --",
+    "benchmark:analyze": "node bench/js-framework-benchmark/analyze-trace.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

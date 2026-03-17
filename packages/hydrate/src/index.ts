@@ -1,5 +1,8 @@
 import '@arrow-js/framework/internal'
 
+import {
+  createHydrationCapture,
+} from '@arrow-js/core/internal'
 import type { ArrowTemplate, ParentNode } from '@arrow-js/core/internal'
 import type { RenderPayload } from '@arrow-js/framework/internal'
 import { toTemplate, withRenderContext } from '@arrow-js/framework/internal'
@@ -45,15 +48,21 @@ export async function hydrate(
       const actual = getInnerHtml(root)
       const expected = payload.html ?? actual
       const stage = document.createDocumentFragment()
+      const capture = createHydrationCapture()
 
-      template(stage)
-      await context.flush()
+      context.hydrationCapture = capture
+      try {
+        template(stage)
+        await context.flush()
+      } finally {
+        context.hydrationCapture = null
+      }
 
       const hydration = {
         mismatches: 0,
       }
 
-      if (hydrateTemplate(template, root, stage, hydration)) {
+      if (hydrateTemplate(capture, template, root, stage, hydration)) {
         if (hydration.mismatches) {
           options.onMismatch?.({
             actual,
