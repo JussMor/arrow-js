@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -euo pipefail
+
+echo "[Hook] Bootstrapping worktree: ${DMUX_SLUG:-unknown}"
+
+if [ -z "${DMUX_WORKTREE_PATH:-}" ]; then
+  echo "[Hook] DMUX_WORKTREE_PATH is not set" >&2
+  exit 1
+fi
+
+cd "$DMUX_WORKTREE_PATH"
+
+if [ ! -f "pnpm-lock.yaml" ]; then
+  echo "[Hook] pnpm-lock.yaml not found, skipping install/build"
+  exit 0
+fi
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "[Hook] pnpm is required but was not found in PATH" >&2
+  exit 1
+fi
+
+echo "[Hook] Running pnpm install --prefer-offline"
+pnpm install --prefer-offline
+
+echo "[Hook] Running pnpm build"
+pnpm build
+
+if [ -n "${DMUX_ROOT:-}" ] && [ -d "${DMUX_ROOT}/.dmux" ]; then
+  echo "[$(date)] Bootstrapped worktree: ${DMUX_SLUG:-unknown}" \
+    >> "${DMUX_ROOT}/.dmux/worktree_history.log"
+fi
+
+echo "[Hook] Worktree bootstrap complete"
