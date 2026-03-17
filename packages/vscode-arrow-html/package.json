@@ -1,0 +1,70 @@
+{
+  "name": "arrowjs-syntax",
+  "displayName": "ArrowJS Syntax",
+  "description": "Theme-native HTML syntax highlighting for ArrowJS html`...` and t`...` template literals in JavaScript and TypeScript.",
+  "version": "0.1.4",
+  "publisher": "StandardAgents",
+  "license": "MIT",
+  "preview": true,
+  "type": "module",
+  "icon": "assets/arrow-logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justin-schroeder/arrow-js.git",
+    "directory": "packages/vscode-arrow-html"
+  },
+  "homepage": "https://github.com/justin-schroeder/arrow-js/tree/main/packages/vscode-arrow-html",
+  "bugs": {
+    "url": "https://github.com/justin-schroeder/arrow-js/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "scripts": {
+    "test": "vitest run packages/vscode-arrow-html/extension.spec.ts",
+    "package": "shx mkdir -p dist && vsce package --no-dependencies --out dist/arrowjs-syntax-${npm_package_version}.vsix",
+    "publish:precheck": "pnpm run test && pnpm run package"
+  },
+  "keywords": [
+    "arrowjs",
+    "arrow-js",
+    "html",
+    "template literal",
+    "syntax highlighting"
+  ],
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "inline.arrowjs.html",
+        "path": "./syntaxes/arrowjs-html.injection.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.html": "html"
+        },
+        "tokenTypes": {
+          "meta.embedded.block.html": "other"
+        },
+        "injectTo": [
+          "source.js",
+          "source.js.jsx",
+          "source.ts",
+          "source.tsx"
+        ]
+      },
+      {
+        "scopeName": "text.html.arrowjs",
+        "path": "./syntaxes/arrowjs-html.tmLanguage.json"
+      }
+    ]
+  },
+  "files": [
+    "CHANGELOG.md",
+    "assets",
+    "syntaxes",
+    "README.md",
+    "LICENSE.txt",
+    "package.json"
+  ]
+}

@@ -90,42 +90,44 @@ section[id] {
    --------------------------------------------------------------------------- */
 :root,
 [data-theme="light"] {
-  --shiki-color-text: #3f3f46;
+  color-scheme: light;
+  --shiki-color-text: #383a42;
   --shiki-color-background: #fafafa;
-  --shiki-token-constant: #7c3aed;
-  --shiki-token-string: #059669;
-  --shiki-token-comment: #a1a1aa;
-  --shiki-token-keyword: #2563eb;
-  --shiki-token-parameter: #dc2626;
-  --shiki-token-function: #ea580c;
-  --shiki-token-string-expression: #059669;
-  --shiki-token-punctuation: #3f3f46;
-  --shiki-token-link: #dc2626;
+  --shiki-token-constant: #986801;
+  --shiki-token-string: #50a14f;
+  --shiki-token-comment: #a0a1a7;
+  --shiki-token-keyword: #a626a4;
+  --shiki-token-parameter: #e45649;
+  --shiki-token-function: #4078f2;
+  --shiki-token-string-expression: #50a14f;
+  --shiki-token-punctuation: #383a42;
+  --shiki-token-link: #0184bc;
 
   /* Twoslash popups */
-  --twoslash-border-color: #e4e4e7;
-  --twoslash-underline-color: #a1a1aa;
+  --twoslash-border-color: #dbdbdc;
+  --twoslash-underline-color: #a0a1a7;
   --twoslash-popup-bg: #ffffff;
-  --twoslash-popup-color: #3f3f46;
+  --twoslash-popup-color: #383a42;
   --twoslash-popup-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.1),
     0 1px 3px rgba(0, 0, 0, 0.06);
-  --twoslash-docs-color: #71717a;
+  --twoslash-docs-color: #696c77;
   --twoslash-docs-font: var(--font-sans);
   --twoslash-code-font: var(--font-mono);
-  --twoslash-highlighted-border: rgba(255, 176, 0, 0.3);
-  --twoslash-highlighted-bg: rgba(255, 176, 0, 0.08);
-  --twoslash-cursor-color: #a1a1aa;
-  --twoslash-error-color: #dc2626;
-  --twoslash-error-bg: rgba(220, 38, 38, 0.06);
-  --twoslash-warn-color: #d97706;
-  --twoslash-warn-bg: rgba(217, 119, 6, 0.06);
+  --twoslash-highlighted-border: rgba(82, 111, 255, 0.25);
+  --twoslash-highlighted-bg: rgba(82, 111, 255, 0.08);
+  --twoslash-cursor-color: #9d9d9f;
+  --twoslash-error-color: #e45649;
+  --twoslash-error-bg: rgba(228, 86, 73, 0.08);
+  --twoslash-warn-color: #c18401;
+  --twoslash-warn-bg: rgba(193, 132, 1, 0.08);
   --twoslash-matched-color: #18181b;
-  --twoslash-unmatched-color: #a1a1aa;
-  --twoslash-tag-color: #2563eb;
-  --twoslash-tag-bg: rgba(37, 99, 235, 0.06);
+  --twoslash-unmatched-color: #a0a1a7;
+  --twoslash-tag-color: #4078f2;
+  --twoslash-tag-bg: rgba(64, 120, 242, 0.08);
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --shiki-color-text: #e4e4e7;
   --shiki-color-background: #18181b;
   --shiki-token-constant: #c084fc;
@@ -170,13 +172,13 @@ section[id] {
 }
 
 [data-theme="light"] .code-block {
-  border-color: #e5e5e5;
-  background: #fcfcfc;
+  border-color: #dbdbdc;
+  background: #fafafa;
 }
 
 [data-theme="dark"] .code-block {
-  border-color: #1e1e21;
-  background: #131316;
+  border-color: #14171c;
+  background: #181b20;
 }
 
 .code-block pre {
@@ -193,6 +195,32 @@ section[id] {
 .code-block code {
   font-family: var(--font-mono);
   background: none;
+}
+
+[data-theme="light"] :is(.code-block, .hero-code) {
+  background: #fafafa;
+}
+
+[data-theme="dark"] :is(.code-block, .hero-code) {
+  background: #181b20;
+}
+
+:is(.code-block, .hero-code) pre.shiki {
+  background: transparent !important;
+}
+
+[data-theme="light"] :is(.code-block, .hero-code) :is(pre.shiki, pre.shiki span) {
+  color: var(--shiki-light) !important;
+}
+
+[data-theme="dark"] :is(.code-block, .hero-code) :is(pre.shiki, pre.shiki span) {
+  color: var(--shiki-dark) !important;
+}
+
+:is(:root, [data-theme="light"]):not([data-theme="dark"])
+  :is(.code-block, .hero-code)
+  .arrow-template-punctuation {
+  color: var(--shiki-token-keyword) !important;
 }
 
 /* Twoslash: code scrolls, popups escape via fixed positioning (JS) */

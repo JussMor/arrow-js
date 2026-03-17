@@ -144,6 +144,65 @@ test('docs TypeScript examples expose Twoslash hover data', async ({ page }) => 
   expect(messages).toEqual([])
 })
 
+test('home and docs code samples highlight Arrow template HTML segments', async ({ page }) => {
+  await page.goto('/')
+
+  const heroCode = page.locator('#hero .hero-code pre.shiki').first()
+  await expect(heroCode).toHaveClass(/one-light/)
+  await expect(heroCode).toHaveClass(/one-dark-pro/)
+
+  const heroHtmlTokens = await heroCode.locator('code .line span').evaluateAll((nodes) => {
+    const tokens = new Map<string, string>()
+
+    for (const node of nodes) {
+      const text = node.textContent ?? ''
+      const style = node.getAttribute('style') ?? ''
+
+      if (
+        text === 'button' ||
+        text === ' @click' ||
+        text === '      Clicked '
+      ) {
+        tokens.set(text, style)
+      }
+    }
+
+    return Object.fromEntries(tokens)
+  })
+
+  expect(heroHtmlTokens.button).toContain('--shiki-light:#E45649')
+  expect(heroHtmlTokens[' @click']).toContain('--shiki-light:#986801')
+  expect(heroHtmlTokens['      Clicked ']).toContain('--shiki-light:#50A14F')
+  expect(heroHtmlTokens.button).not.toBe(heroHtmlTokens[' @click'])
+
+  await page.goto('/docs/')
+
+  await expect.poll(() => page.locator('article pre.shiki').count()).toBeGreaterThan(10)
+
+  const docsArrowHtmlTokens = await page.locator('article pre.shiki code .line span').evaluateAll(
+    (nodes) =>
+      nodes
+        .map((node) => ({
+          text: node.textContent,
+          style: node.getAttribute('style') ?? '',
+        }))
+        .filter((token) => token.text === 'button' || token.text === ' @click')
+  )
+
+  expect(docsArrowHtmlTokens).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        text: 'button',
+        style: expect.stringContaining('--shiki-light:#E45649'),
+      }),
+      expect.objectContaining({
+        text: ' @click',
+        style: expect.stringContaining('--shiki-light:#986801'),
+      }),
+    ])
+  )
+})
+
 test('docs examples link into the playground and changelog is absent', async ({
   page,
 }) => {

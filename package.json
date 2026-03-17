@@ -19,8 +19,11 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@rollup/plugin-typescript": "^12.1.4",
+    "@shikijs/engine-oniguruma": "^4.0.2",
+    "@shikijs/vscode-textmate": "^10.0.2",
     "@size-limit/preset-small-lib": "^11.2.0",
     "@types/node": "^22.16.5",
+    "@vscode/vsce": "^3.7.1",
     "chalk": "^5.6.2",
     "execa": "^9.6.0",
     "jsdom": "^26.1.0",

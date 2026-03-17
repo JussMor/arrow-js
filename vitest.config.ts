@@ -37,6 +37,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, 'packages/hydrate/src/index.ts'),
       },
       {
+        find: '@arrow-js/highlight',
+        replacement: path.resolve(__dirname, 'packages/highlight/src/index.ts'),
+      },
+      {
         find: '@arrow-js/compiler',
         replacement: path.resolve(__dirname, 'packages/compiler/src/index.ts'),
       },

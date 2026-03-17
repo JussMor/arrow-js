@@ -1,4 +1,9 @@
 import { html, reactive } from '@arrow-js/core'
+import {
+  applyArrowHtmlPreset,
+  arrowHtmlTokenClassName,
+  tokenizeArrowHtmlTemplates,
+} from '@arrow-js/highlight'
 import { ThemeToggle } from '../src/components/ThemeToggle'
 import arrowTypes from './arrow-types.d.ts?raw'
 import {
@@ -63,6 +68,45 @@ let htmlDecorations
 
 const models = new Map()
 const viewStates = new Map()
+
+applyArrowHtmlPreset(document.documentElement)
+
+function defineEditorThemes() {
+  if (!monaco) return
+
+  monaco.editor.defineTheme('arrow-one-light', {
+    base: 'vs',
+    inherit: true,
+    colors: {
+      'editor.background': '#FAFAFA',
+      'editor.foreground': '#383A42',
+      'editor.lineHighlightBackground': '#383A420C',
+      'editor.selectionBackground': '#E5E5E6',
+      'editorCursor.foreground': '#526FFF',
+      'editorLineNumber.foreground': '#9D9D9F',
+      'editorLineNumber.activeForeground': '#383A42',
+      'editorIndentGuide.background1': '#383A4233',
+      'editorIndentGuide.activeBackground1': '#626772',
+    },
+    rules: [
+      { token: 'comment', foreground: 'A0A1A7', fontStyle: 'italic' },
+      { token: 'string', foreground: '50A14F' },
+      { token: 'number', foreground: '986801' },
+      { token: 'keyword', foreground: 'A626A4' },
+      { token: 'delimiter', foreground: '383A42' },
+      { token: 'operator', foreground: '0184BC' },
+      { token: 'type', foreground: 'C18401' },
+      { token: 'type.identifier', foreground: 'C18401' },
+      { token: 'identifier', foreground: '383A42' },
+      { token: 'variable', foreground: 'E45649' },
+      { token: 'variable.predefined', foreground: 'E45649' },
+      { token: 'function', foreground: '4078F2' },
+      { token: 'tag', foreground: 'E45649' },
+      { token: 'attribute.name', foreground: '986801' },
+      { token: 'attribute.value', foreground: '50A14F' },
+    ],
+  })
+}
 
 const encodeText = (text) => {
   const bytes = new TextEncoder().encode(text)
@@ -313,7 +357,7 @@ const sendThemeToPreview = () => {
 const updateEditorTheme = () => {
   if (!monaco) return
   monaco.editor.setTheme(
-    document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs'
+    document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'arrow-one-light'
   )
   scheduleHtmlHighlight()
   sendThemeToPreview()
@@ -425,255 +469,19 @@ const scheduleCompile = () => {
   }, 140)
 }
 
-const skipString = (source, index, quote) => {
-  for (let i = index + 1; i < source.length; i++) {
-    if (source[i] === '\\') {
-      i++
-      continue
-    }
-    if (source[i] === quote) return i + 1
-  }
-  return source.length
-}
-
-const skipLineComment = (source, index) => {
-  const next = source.indexOf('\n', index + 2)
-  return next === -1 ? source.length : next
-}
-
-const skipBlockComment = (source, index) => {
-  const next = source.indexOf('*/', index + 2)
-  return next === -1 ? source.length : next + 2
-}
-
-const skipTemplateLiteral = (source, index) => {
-  for (let i = index + 1; i < source.length; i++) {
-    if (source[i] === '\\') {
-      i++
-      continue
-    }
-    if (source[i] === '`') return i + 1
-    if (source[i] === '$' && source[i + 1] === '{') {
-      i = skipJsExpression(source, i + 2) - 1
-    }
-  }
-  return source.length
-}
-
-const skipJsExpression = (source, index, regions) => {
-  let depth = 0
-  for (let i = index; i < source.length; i++) {
-    const char = source[i]
-    const tagLength = templateTagLength(source, i)
-
-    if (tagLength) {
-      i = scanTaggedTemplate(source, i + tagLength, regions) - 1
-      continue
-    }
-    if (char === "'" || char === '"') {
-      i = skipString(source, i, char) - 1
-      continue
-    }
-    if (char === '`') {
-      i = skipTemplateLiteral(source, i) - 1
-      continue
-    }
-    if (char === '/' && source[i + 1] === '/') {
-      i = skipLineComment(source, i) - 1
-      continue
-    }
-    if (char === '/' && source[i + 1] === '*') {
-      i = skipBlockComment(source, i) - 1
-      continue
-    }
-    if (char === '{') {
-      depth++
-      continue
-    }
-    if (char === '}') {
-      if (!depth) return i + 1
-      depth--
-    }
-  }
-  return source.length
-}
-
-const templateTagLength = (source, index) => {
-  if (!source.startsWith('html`', index) && !source.startsWith('t`', index)) {
-    return 0
-  }
-  const prev = source[index - 1]
-  return prev && /[\w$.]/.test(prev) ? 0 : source[index] === 'h' ? 5 : 2
-}
-
-const scanTaggedTemplate = (source, index, regions) => {
-  let segmentStart = index
-  for (let i = index; i < source.length; i++) {
-    if (source[i] === '$' && source[i + 1] === '{') {
-      if (segmentStart < i) regions.push([segmentStart, i])
-      i = skipJsExpression(source, i + 2, regions) - 1
-      segmentStart = i + 1
-      continue
-    }
-    if (source[i] === '`') {
-      if (segmentStart < i) regions.push([segmentStart, i])
-      return i + 1
-    }
-  }
-  if (segmentStart < source.length) regions.push([segmentStart, source.length])
-  return source.length
-}
-
-const collectHtmlTemplateRegions = (source) => {
-  const regions = []
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i]
-    const tagLength = templateTagLength(source, i)
-    if (tagLength) {
-      i = scanTaggedTemplate(source, i + tagLength, regions) - 1
-      continue
-    }
-    if (char === "'" || char === '"') {
-      i = skipString(source, i, char) - 1
-      continue
-    }
-    if (char === '`') {
-      i = skipTemplateLiteral(source, i) - 1
-      continue
-    }
-    if (char === '/' && source[i + 1] === '/') {
-      i = skipLineComment(source, i) - 1
-      continue
-    }
-    if (char === '/' && source[i + 1] === '*') {
-      i = skipBlockComment(source, i) - 1
-    }
-  }
-  return regions
-}
-
-const tokenizeHtmlSegment = (segment) => {
-  const tokens = []
-  const push = (start, end, className) => {
-    if (end > start) tokens.push([start, end, className])
-  }
-
-  let i = 0
-  while (i < segment.length) {
-    if (segment.startsWith('<!--', i)) {
-      const end = segment.indexOf('-->', i + 4)
-      const next = end === -1 ? segment.length : end + 3
-      push(i, next, 'play-html-comment')
-      i = next
-      continue
-    }
-
-    if (segment[i] !== '<') {
-      i++
-      continue
-    }
-
-    const next = segment[i + 1]
-    if (!next || /[\s=]/.test(next)) {
-      i++
-      continue
-    }
-
-    let cursor = i
-    if (segment.startsWith('</', cursor)) {
-      push(cursor, cursor + 2, 'play-html-delimiter')
-      cursor += 2
-    } else {
-      push(cursor, cursor + 1, 'play-html-delimiter')
-      cursor++
-    }
-
-    const nameStart = cursor
-    while (cursor < segment.length && /[A-Za-z0-9:_-]/.test(segment[cursor]))
-      cursor++
-    push(nameStart, cursor, 'play-html-tag')
-
-    while (cursor < segment.length) {
-      while (cursor < segment.length && /\s/.test(segment[cursor])) cursor++
-
-      if (segment.startsWith('/>', cursor)) {
-        push(cursor, cursor + 2, 'play-html-delimiter')
-        cursor += 2
-        break
-      }
-      if (segment[cursor] === '>') {
-        push(cursor, cursor + 1, 'play-html-delimiter')
-        cursor++
-        break
-      }
-
-      const attrStart = cursor
-      while (cursor < segment.length && !/[\s=>/]/.test(segment[cursor])) {
-        cursor++
-      }
-      push(attrStart, cursor, 'play-html-attr-name')
-
-      while (cursor < segment.length && /\s/.test(segment[cursor])) cursor++
-      if (segment[cursor] !== '=') continue
-
-      cursor++
-      while (cursor < segment.length && /\s/.test(segment[cursor])) cursor++
-      const valueStart = cursor
-      const quote = segment[cursor]
-
-      if (quote === '"' || quote === "'") {
-        cursor++
-        while (cursor < segment.length) {
-          if (segment[cursor] === '\\') {
-            cursor += 2
-            continue
-          }
-          if (segment[cursor] === quote) {
-            cursor++
-            break
-          }
-          cursor++
-        }
-      } else {
-        while (cursor < segment.length && !/[\s>]/.test(segment[cursor]))
-          cursor++
-      }
-      push(valueStart, cursor, 'play-html-attr-value')
-    }
-
-    i = cursor
-  }
-
-  return tokens
-}
-
 const buildHtmlDecorations = (model) => {
   const source = model.getValue()
-  const regions = collectHtmlTemplateRegions(source)
-  const decorations = []
-
-  for (const [startOffset, endOffset] of regions) {
-    const segment = source.slice(startOffset, endOffset)
-    for (const [localStart, localEnd, className] of tokenizeHtmlSegment(
-      segment
-    )) {
-      const start = startOffset + localStart
-      const end = startOffset + localEnd
-      decorations.push({
-        options: {
-          inlineClassName: className,
-        },
-        range: new monaco.Range(
-          model.getPositionAt(start).lineNumber,
-          model.getPositionAt(start).column,
-          model.getPositionAt(end).lineNumber,
-          model.getPositionAt(end).column
-        ),
-      })
-    }
-  }
-
-  return decorations
+  return tokenizeArrowHtmlTemplates(source).map(({ start, end, type }) => ({
+    options: {
+      inlineClassName: arrowHtmlTokenClassName(type),
+    },
+    range: new monaco.Range(
+      model.getPositionAt(start).lineNumber,
+      model.getPositionAt(start).column,
+      model.getPositionAt(end).lineNumber,
+      model.getPositionAt(end).column
+    ),
+  }))
 }
 
 const applyHtmlHighlight = () => {
@@ -1039,6 +847,7 @@ const loadMonaco = () => {
 
 const initMonaco = async () => {
   monaco = await loadMonaco()
+  defineEditorThemes()
   updateEditorTheme()
 
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
