@@ -1,5 +1,6 @@
 {
   "name": "arrow-workspace",
+  "version": "1.0.0-alpha.9",
   "private": true,
   "packageManager": "pnpm@10.14.0",
   "type": "module",
@@ -23,7 +24,10 @@
     "benchmark:targets": "node bench/js-framework-benchmark/run.mjs --preset targets",
     "benchmark:breadth": "node bench/js-framework-benchmark/run.mjs --preset breadth",
     "benchmark:run": "node bench/js-framework-benchmark/run.mjs --",
-    "benchmark:analyze": "node bench/js-framework-benchmark/analyze-trace.mjs"
+    "benchmark:analyze": "node bench/js-framework-benchmark/analyze-trace.mjs",
+    "release": "node scripts/release.mjs",
+    "release:next": "node scripts/release.mjs --tag=next",
+    "release:dev": "node scripts/release.mjs --tag=dev"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

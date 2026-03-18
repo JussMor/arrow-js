@@ -31,7 +31,7 @@ export interface ArrowTemplate {
   _i?: ArrowTemplateId
 }
 
-type ArrowTemplateKey = string | number | undefined
+export type ArrowTemplateKey = string | number | undefined
 type ArrowTemplateId = string | number | undefined
 
 export type ArrowRenderable =

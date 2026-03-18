@@ -1,0 +1,97 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install latest npm
+        run: npm install -g npm@latest
+
+      - name: Determine release version and npm tag
+        id: release
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *"-next."* ]]; then
+            echo "npm_tag=next" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *"-dev."* ]]; then
+            echo "npm_tag=dev" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure latest tags are on main
+        if: steps.release.outputs.npm_tag == 'latest'
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -q 'origin/main$'; then
+            echo "Latest releases must be tagged from main." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync package versions to tag
+        run: node scripts/release.mjs sync --version "${{ steps.release.outputs.version }}"
+
+      - name: Build core runtime
+        run: pnpm --filter @arrow-js/core build
+
+      - name: Pack and publish packages
+        env:
+          NPM_TAG: ${{ steps.release.outputs.npm_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACK_DIR="$RUNNER_TEMP/packs"
+          mkdir -p "$PACK_DIR"
+
+          publish_pkg() {
+            local dir="$1"
+            pushd "$dir" >/dev/null
+            local tarball
+            tarball=$(pnpm pack --pack-destination "$PACK_DIR")
+            popd >/dev/null
+
+            for attempt in 1 2 3; do
+              npm publish "$PACK_DIR/$tarball" --tag "$NPM_TAG" --access public && return 0
+              echo "Publish attempt $attempt failed for $dir, retrying in 5s..."
+              sleep 5
+            done
+
+            echo "Failed to publish $dir" >&2
+            return 1
+          }
+
+          publish_pkg packages/core
+          publish_pkg packages/framework
+          publish_pkg packages/highlight
+          publish_pkg packages/hydrate
+          publish_pkg packages/ssr
+          publish_pkg packages/vite-plugin-arrow
+          publish_pkg packages/skill
+          publish_pkg packages/create-arrow-js
