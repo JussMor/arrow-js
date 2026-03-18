@@ -66,25 +66,16 @@ function getBurstOrigin(event: MouseEvent) {
 export const CliCommand = component(() => {
   const state = reactive({ copied: false })
   let timer: ReturnType<typeof setTimeout>
-  const command = 'npx @arrow-js/skill'
+  const command = 'pnpm create arrow-js@latest arrow-app'
 
   async function copy(event: MouseEvent) {
-    console.debug('[arrow:copied-burst] click', {
-      target: event.target,
-      currentTarget: event.currentTarget,
-      clientX: event.clientX,
-      clientY: event.clientY,
-    })
-
     const copied = await copyText(command)
-    console.debug('[arrow:copied-burst] copy result', { copied })
 
     if (!copied) {
       return
     }
 
     const origin = getBurstOrigin(event)
-    console.debug('[arrow:copied-burst] dispatch', origin)
     document.dispatchEvent(
       new CustomEvent('arrow:copied-burst', {
         detail: {
@@ -112,7 +103,9 @@ export const CliCommand = component(() => {
       aria-label="Copy install command"
     >
       <span class="cli-prompt">$</span>
-      <code class="cli-text"><span class="cli-kw">npx</span> @arrow-js/skill</code>
+      <code class="cli-text">
+        <span class="cli-kw">pnpm</span> create arrow-js@latest arrow-app
+      </code>
       <span
         class="${() => state.copied ? 'cli-copy cli-copy--done' : 'cli-copy'}"
       >${() =>

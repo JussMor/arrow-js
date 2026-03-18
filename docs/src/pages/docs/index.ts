@@ -2,13 +2,14 @@ import { html } from '@arrow-js/core'
 import { CopyPageMenu } from '../../components/CopyPageMenu'
 import { Navigation } from './Navigation'
 import {
-  WhatIsArrow,
+  WhyArrow,
   Quickstart,
   Components,
   ReactiveData,
   WatchingData,
   Templates,
   ServerRendering,
+  Routing,
   Examples,
 } from './content'
 
@@ -27,7 +28,7 @@ export function DocsPage() {
             ${CopyPageMenu({ markdownPath: '/docs.md' })}
           </div>
 
-          ${WhatIsArrow()} ${Quickstart()} ${Components()}
+          ${WhyArrow()} ${Quickstart()}
 
           <div
             class="border-t border-zinc-200 dark:border-zinc-800 my-12 pt-12"
@@ -35,12 +36,12 @@ export function DocsPage() {
             <h1
               class="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-8"
             >
-              API Reference
+              Essentials
             </h1>
           </div>
 
-          ${ReactiveData()} ${WatchingData()} ${Templates()}
-          ${ServerRendering()} ${Examples()}
+          ${ReactiveData()} ${Templates()} ${Components()} ${WatchingData()}
+          ${ServerRendering()} ${Routing()} ${Examples()}
         </article>
       </div>
     </div>

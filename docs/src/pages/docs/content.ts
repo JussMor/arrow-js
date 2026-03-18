@@ -12,35 +12,32 @@ import { CliCommand } from '../../components/CliCommand'
  * interactive widgets with local state.
  */
 
-export function WhatIsArrow() {
+export function WhyArrow() {
   return html`
-    <section id="what-is-arrow" class="mb-16">
+    <section id="why-arrow" class="mb-16">
       <h2
         class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4"
       >
-        What is Arrow
+        Why Arrow
       </h2>
       <div class="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
         <p>
-          Arrow is a small reactive UI runtime built around platform primitives:
-          JavaScript modules, template literals, and the DOM.
+          Arrow is a small reactive UI framework built around platform primitives:
+          JavaScript modules, functions, and template literals. Arrow is just TypeScript, so your coding agent already knows how to use it really well.
         </p>
-        <ul class="list-disc pl-6 space-y-2">
-          <li>Keep the core runtime small and direct.</li>
-          <li>
-            Use platform primitives like modules, template literals, and the
-            DOM.
-          </li>
-          <li>Make client-only rendering trivial.</li>
-          <li>
-            Layer SSR, hydration, and async components in separate packages.
-          </li>
-        </ul>
         <p>
-          That split is the main idea behind the current monorepo. Reach for
-          <code>@arrow-js/core</code> when you just need reactive DOM work.
-          Reach for the framework packages when you want SSR, hydration, and
-          async component orchestration.
+          You only need 3 functions:
+          <ul>
+            <li><code>html</code></li>
+            <li><code>reactive</code></li>
+            <li><code>component</code></li>
+          </ul>
+        </p>
+        <p>
+           Unlike other major frameworks, there is no "idomatic" way to use Arrow since it's just TypeScript functions and template literals. The entire documentation fits in less than 5% of a 200k context window.
+        </p>
+        <p>
+          Arrow requires no build step, no JSX compilation, no React compiler, no Vite plugin (there is one if you need SSR), no Vue template complier, and yet it runs incredibly fast at with less than 5kb over the wire. It's perfect for things like inline interfaces produced by chat agents.
         </p>
       </div>
     </section>
@@ -57,126 +54,27 @@ export function Quickstart() {
       </h2>
       <div class="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
         <p>
-          Run a single command to add Arrow to your project — or scaffold a
-          complete Arrow project with SSR, hydration, and all packages
-          configured:
+          Scaffold a complete Vite 8 Arrow app with SSR, hydration, route-based
+          metadata, and the full framework stack in one command:
         </p>
 
         ${CliCommand()}
 
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-6">
-          Manual setup
+          Client only
         </h3>
         <p>
-          Prefer to wire things up yourself? Start with a Vite 8 project and add
-          the Arrow packages. These examples use TypeScript and the Vite
-          <code>vanilla-ts</code> starter.
+          If you only need the tiny client runtime:
         </p>
-
         <div class="code-block">
-          <pre><code class="language-shell">pnpm create vite@latest arrow-app --template vanilla-ts
-cd arrow-app
-pnpm add @arrow-js/core @arrow-js/framework @arrow-js/ssr @arrow-js/hydrate
-pnpm add -D vite@8</code></pre>
-        </div>
-
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
-          <code>src/App.ts</code>
-        </h3>
-        <div class="code-block">
-          <pre><code class="language-ts">import { component, html } from '@arrow-js/core'
-import { boundary } from '@arrow-js/framework'
-
-type WelcomeProps = {
-  message: string
-}
-
-const Welcome = component(async ({ message }: WelcomeProps) =>
-  html\`&lt;p&gt;\${message}&lt;/p&gt;\`
-)
-
-export function createApp() {
-  return html\`&lt;main&gt;
-    &lt;h1&gt;Arrow + Vite 8&lt;/h1&gt;
-    \${boundary(Welcome({ message: 'SSR first. Hydrated when the browser boots.' }))}
-  &lt;/main&gt;\`
-}</code></pre>
-        </div>
-
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
-          <code>src/entry-server.ts</code>
-        </h3>
-        <div class="code-block">
-          <pre><code class="language-ts">import { renderToString, serializePayload } from '@arrow-js/ssr'
-import { createApp } from './App'
-
-export async function renderPage() {
-  const result = await renderToString(createApp())
-  return result
-}</code></pre>
-        </div>
-
-        <p>
-          On the client, read the serialized payload and hydrate the same view:
-        </p>
-
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
-          <code>src/entry-client.ts</code>
-        </h3>
-        <div class="code-block">
-          <pre><code class="language-ts">import { hydrate, readPayload } from '@arrow-js/hydrate'
-import { createApp } from './App'
-
-const root = document.getElementById('app')
-if (!root) throw new Error('Missing #app root')
-
-await hydrate(root, createApp(), readPayload())</code></pre>
-        </div>
-
-        <p>
-          This is the shape used by the docs app itself. The server sends HTML
-          immediately, then the browser hydrates the existing DOM instead of
-          replacing it.
-        </p>
-
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-6">
-          Other ways to install
-        </h3>
-        <p>
-          Arrow still works fine without a build tool. If you only need the core
-          runtime, a simple module import is enough.
-        </p>
-
-        <h4 class="font-semibold text-zinc-800 dark:text-zinc-200">
-          From npm:
-        </h4>
-        <div class="code-block">
-          <pre><code class="language-shell">npm install @arrow-js/core</code></pre>
-        </div>
-
-        <h4 class="font-semibold text-zinc-800 dark:text-zinc-200">
-          From a CDN:
-        </h4>
-        <div class="code-block">
-          <pre><code class="language-html">&lt;script type="module"&gt;
-  import { reactive, html } from 'https://esm.sh/@arrow-js/core'
-&lt;/script&gt;</code></pre>
+          <pre><code class="language-shell">pnpm add @arrow-js/core</code></pre>
         </div>
 
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
           Editor support
         </h3>
         <p>
-          Since Arrow uses tagged template literals, its syntax is very similar
-          to lit-html. If you are using VSCode, install the
-          <a
-            href="https://marketplace.visualstudio.com/items?itemName=bierner.lit-html"
-            class="text-arrow-600 dark:text-arrow-400 underline underline-offset-2"
-          >
-            lit-html
-          </a>
-          extension to enable syntax highlighting on <code>html</code> blocks.
-          Arrow also ships TypeScript definitions for full editor support.
+          If you're still using an IDE you can use the <a href="https://marketplace.visualstudio.com/items?itemName=StandardAgents.arrowjs-syntax">ArrowJS VSCode extension</a> to get syntax highlighting for the html template literals.
         </p>
       </div>
     </section>
@@ -608,6 +506,52 @@ export function ServerRendering() {
             fallbacks, custom serialization, or easier-to-read SSR ids, not for
             the common case.
           </p>
+        </div>
+      </div>
+    </section>
+  `
+}
+
+export function Routing() {
+  return html`
+    <section id="routing" class="mb-16">
+      <h2
+        class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4"
+      >
+        Routing
+      </h2>
+      <div class="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
+        <p>
+          The Vite scaffold uses a simple <code>createPage(url)</code> entry so
+          the server and browser both resolve the same route tree.
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>Choose a route from the incoming URL.</li>
+          <li>Return the page status, metadata, and Arrow view together.</li>
+          <li>
+            Reuse the same routing function for SSR and hydration so both sides
+            render the same page shape.
+          </li>
+        </ul>
+
+        <div class="code-block">
+          <pre><code class="language-ts">import { html } from '@arrow-js/core'
+
+export function createPage(url: string) {
+  if (url === '/') {
+    return {
+      status: 200,
+      title: 'Home',
+      view: html\`&lt;main&gt;Home&lt;/main&gt;\`,
+    }
+  }
+
+  return {
+    status: 404,
+    title: 'Not Found',
+    view: html\`&lt;main&gt;Not found&lt;/main&gt;\`,
+  }
+}</code></pre>
         </div>
       </div>
     </section>

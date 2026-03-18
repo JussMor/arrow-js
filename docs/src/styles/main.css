@@ -493,6 +493,29 @@ section[id] {
   color: #e4e4e7;
 }
 
+/* Inline docs links */
+article :where(p, li, td, blockquote) a:not(.playground-cta) {
+  text-decoration-line: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+  transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+[data-theme="light"] article :where(p, li, td, blockquote) a:not(.playground-cta) {
+  color: #2563eb;
+  text-decoration-color: rgba(37, 99, 235, 0.4);
+}
+
+[data-theme="dark"] article :where(p, li, td, blockquote) a:not(.playground-cta) {
+  color: #93c5fd;
+  text-decoration-color: rgba(147, 197, 253, 0.4);
+}
+
+article :where(p, li, td, blockquote) a:not(.playground-cta):is(:hover, :focus-visible) {
+  color: var(--color-arrow-500);
+  text-decoration-color: var(--color-arrow-500);
+}
+
 /* ---------------------------------------------------------------------------
    Callout boxes (tip, info, warning)
    --------------------------------------------------------------------------- */

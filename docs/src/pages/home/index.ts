@@ -8,32 +8,34 @@ import {
   playgroundExampleHref,
 } from '../../../play/example-meta.js'
 import {
-  WhatIsArrow,
   Quickstart,
   Components,
   ReactiveData,
   WatchingData,
   Templates,
   ServerRendering,
+  Routing,
   Examples,
+  WhyArrow,
 } from '../docs/content'
 
 const homeNavGroups: NavGroup[] = [
   {
-    title: 'Essentials',
+    title: 'Getting Started',
     items: [
-      { id: 'what-is-arrow', label: 'What is Arrow' },
+      { id: 'why-arrow', label: 'Why Arrow' },
       { id: 'quick-start', label: 'Quickstart' },
-      { id: 'components', label: 'Components' },
     ],
   },
   {
-    title: 'Core Concepts',
+    title: 'Essentials',
     items: [
       { id: 'reactive-data', label: 'Reactive Data' },
-      { id: 'watching-data', label: 'Watching Data' },
       { id: 'templates', label: 'Templates' },
+      { id: 'components', label: 'Components' },
+      { id: 'watching-data', label: 'Watching Data' },
       { id: 'ssr', label: 'Server Rendering' },
+      { id: 'routing', label: 'Routing' },
     ],
   },
   {
@@ -61,8 +63,9 @@ export function HomePage() {
             <div class="flex justify-end mb-4">
               ${CopyPageMenu({ markdownPath: '/docs.md' })}
             </div>
-            ${WhatIsArrow()} ${Quickstart()} ${Components()} ${ReactiveData()}
-            ${WatchingData()} ${Templates()} ${ServerRendering()} ${Examples()}
+            ${WhyArrow()} ${Quickstart()} ${ReactiveData()} ${Templates()}
+            ${Components()} ${WatchingData()} ${ServerRendering()} ${Routing()}
+            ${Examples()}
           </article>
         </div>
       </div>

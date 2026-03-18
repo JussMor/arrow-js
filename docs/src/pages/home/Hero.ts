@@ -73,18 +73,15 @@ export function Hero() {
             </span>
           </div>
           <div class="hero-code">
-            <pre><code class="language-ts">import { component, html, reactive } from '@arrow-js/core'
+            <pre><code class="language-ts">import { html, reactive } from '@arrow-js/core'
 
-const Counter = component(() =&gt; {
-  const data = reactive({ count: 0 })
-  return html&#96;
-    &lt;button @click="&#36;{() =&gt; data.count++}"&gt;
-      Clicked &#36;{() =&gt; data.count} times
-    &lt;/button&gt;
-  &#96;
-})
+const data = reactive({ count: 0 })
 
-html&#96;&#36;{Counter()}&#96;(document.body)</code></pre>
+html&#96;
+  &lt;button @click="&#36;{() =&gt; data.count++}"&gt;
+    Clicked &#36;{() =&gt; data.count} times
+  &lt;/button&gt;
+&#96;(document.body)</code></pre>
           </div>
           <div
             class="border-t border-zinc-200 dark:border-zinc-800 px-5 py-4 rounded-b-xl bg-white dark:bg-zinc-900/80"

@@ -31,20 +31,26 @@ function isHrefItem(item: NavItem): item is Extract<NavItem, { href: string }> {
 
 const navigation: NavGroup[] = [
   {
-    title: 'Essentials',
+    title: 'Getting Started',
     items: [
-      { id: 'what-is-arrow', label: 'What is Arrow' },
+      { id: 'why-arrow', label: 'Why Arrow' },
       { id: 'quick-start', label: 'Quickstart' },
-      { id: 'components', label: 'Components' },
     ],
   },
   {
-    title: 'API',
+    title: 'Essentials',
     items: [
-      { id: 'reactive-data', label: 'Reactive (r)' },
-      { id: 'watching-data', label: 'Watch (w)' },
-      { id: 'templates', label: 'HTML (t)' },
-      { id: 'ssr', label: 'SSR' },
+      { id: 'reactive-data', label: 'Reactive Data' },
+      { id: 'templates', label: 'Templates' },
+      { id: 'components', label: 'Components' },
+      { id: 'watching-data', label: 'Watching Data' },
+      { id: 'ssr', label: 'Server Rendering' },
+      { id: 'routing', label: 'Routing' },
+    ],
+  },
+  {
+    title: 'Framework',
+    items: [
       { id: 'hydration', label: 'Hydration' },
       { id: 'ecosystem', label: 'Ecosystem' },
     ],

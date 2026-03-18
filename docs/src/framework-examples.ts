@@ -1,8 +1,5 @@
 export default {
-  install: `pnpm create arrow-js@latest arrow-app
-cd arrow-app
-pnpm install
-pnpm dev`,
+  install: `pnpm create arrow-js@latest arrow-app`,
 
   app: `import { component, html, reactive } from '@arrow-js/core'
 import { boundary } from '@arrow-js/framework'
