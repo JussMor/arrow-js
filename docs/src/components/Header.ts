@@ -9,7 +9,7 @@ if (typeof window !== 'undefined') {
   if (cached) {
     stars.count = cached
   } else {
-    fetch('https://api.github.com/repos/justin-schroeder/arrow-js')
+    fetch('https://api.github.com/repos/standardagents/arrow-js')
       .then(r => r.json())
       .then(data => {
         if (data.stargazers_count) {
@@ -70,7 +70,7 @@ export function Header(url: string = '/') {
             Playground
           </a>
           <a
-            href="https://github.com/justin-schroeder/arrow-js"
+            href="https://github.com/standardagents/arrow-js"
             class="flex items-center gap-1.5 px-2 py-1.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
             target="_blank"
             rel="noopener"

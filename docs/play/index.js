@@ -603,7 +603,7 @@ const openGitHubIssue = async () => {
   state.sharing = true
   try {
     const playUrl = await getShareUrl()
-    const issueUrl = `https://github.com/justin-schroeder/arrow-js/issues/new?labels=playground&body=${encodeURIComponent(`Describe the issue…\n\nPlayground: ${playUrl}`)}`
+    const issueUrl = `https://github.com/standardagents/arrow-js/issues/new?labels=playground&body=${encodeURIComponent(`Describe the issue…\n\nPlayground: ${playUrl}`)}`
     window.open(issueUrl, '_blank')
     closeCopyMenu()
   } finally {

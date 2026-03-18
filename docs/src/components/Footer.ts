@@ -19,7 +19,7 @@ export function Footer() {
         </p>
         <div class="flex items-center gap-6">
           <a
-            href="https://github.com/justin-schroeder/arrow-js"
+            href="https://github.com/standardagents/arrow-js"
             class="hover:text-arrow-500 transition-colors"
             target="_blank"
             rel="noopener"

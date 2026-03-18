@@ -1,6 +1,6 @@
 export const starterExampleId = 'starter'
 const examplesBaseUrl =
-  'https://github.com/justin-schroeder/arrow-js/tree/master/docs/play/examples'
+  'https://github.com/standardagents/arrow-js/tree/main/docs/play/examples'
 
 export const playgroundExampleMeta = [
   {

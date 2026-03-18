@@ -9,12 +9,12 @@
   "icon": "assets/arrow-logo.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/justin-schroeder/arrow-js.git",
+    "url": "https://github.com/standardagents/arrow-js.git",
     "directory": "packages/vscode-arrow-html"
   },
-  "homepage": "https://github.com/justin-schroeder/arrow-js/tree/main/packages/vscode-arrow-html",
+  "homepage": "https://github.com/standardagents/arrow-js/tree/main/packages/vscode-arrow-html",
   "bugs": {
-    "url": "https://github.com/justin-schroeder/arrow-js/issues"
+    "url": "https://github.com/standardagents/arrow-js/issues"
   },
   "engines": {
     "vscode": "^1.90.0"
