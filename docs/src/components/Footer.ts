@@ -2,15 +2,15 @@ import { html } from '@arrow-js/core'
 
 export function Footer() {
   return html`
-    <footer class="border-t border-zinc-200 dark:border-zinc-800 mt-24">
+    <footer class="site-footer border-t border-zinc-200 dark:border-zinc-800 mt-24">
       <div
-        class="max-w-7xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-500 dark:text-zinc-500"
+        class="max-w-7xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm"
       >
         <p>
           Built with Arrow by
           <a
             href="https://twitter.com/jpschroeder"
-            class="text-zinc-700 dark:text-zinc-300 hover:text-arrow-500 transition-colors"
+            class="text-zinc-700 dark:text-zinc-300 underline decoration-current underline-offset-2 hover:text-arrow-500 transition-colors"
             target="_blank"
             rel="noopener"
           >

@@ -4,20 +4,35 @@ import { ScrollSpyNav } from '../../components/ScrollSpyNav'
 import type { NavGroup } from '../../components/ScrollSpyNav'
 import {
   ReactiveApi,
+  HighlightedReactiveApi,
   WatchApi,
+  HighlightedWatchApi,
   HtmlApi,
+  HighlightedHtmlApi,
   ComponentApi,
+  HighlightedComponentApi,
   PickApi,
+  HighlightedPickApi,
   NextTickApi,
+  HighlightedNextTickApi,
   RenderApi,
+  HighlightedRenderApi,
   BoundaryApi,
+  HighlightedBoundaryApi,
   ToTemplateApi,
+  HighlightedToTemplateApi,
   RenderDocumentApi,
+  HighlightedRenderDocumentApi,
   RenderToStringApi,
+  HighlightedRenderToStringApi,
   SerializePayloadApi,
+  HighlightedSerializePayloadApi,
   HydrateApi,
+  HighlightedHydrateApi,
   ReadPayloadApi,
+  HighlightedReadPayloadApi,
   TypesReference,
+  HighlightedTypesReference,
 } from './content'
 
 const apiNavGroups: NavGroup[] = [
@@ -61,8 +76,28 @@ const apiNavGroups: NavGroup[] = [
   },
 ]
 
-export function ApiPage() {
+export function ApiPage(options: { highlightCode?: boolean } = {}) {
+  const highlightCode = options.highlightCode !== false
   const nav = ScrollSpyNav(apiNavGroups)
+  const ReactiveApiSection = highlightCode ? HighlightedReactiveApi : ReactiveApi
+  const WatchApiSection = highlightCode ? HighlightedWatchApi : WatchApi
+  const HtmlApiSection = highlightCode ? HighlightedHtmlApi : HtmlApi
+  const ComponentApiSection = highlightCode ? HighlightedComponentApi : ComponentApi
+  const PickApiSection = highlightCode ? HighlightedPickApi : PickApi
+  const NextTickApiSection = highlightCode ? HighlightedNextTickApi : NextTickApi
+  const RenderApiSection = highlightCode ? HighlightedRenderApi : RenderApi
+  const BoundaryApiSection = highlightCode ? HighlightedBoundaryApi : BoundaryApi
+  const ToTemplateApiSection = highlightCode ? HighlightedToTemplateApi : ToTemplateApi
+  const RenderDocumentApiSection =
+    highlightCode ? HighlightedRenderDocumentApi : RenderDocumentApi
+  const RenderToStringApiSection =
+    highlightCode ? HighlightedRenderToStringApi : RenderToStringApi
+  const SerializePayloadApiSection =
+    highlightCode ? HighlightedSerializePayloadApi : SerializePayloadApi
+  const HydrateApiSection = highlightCode ? HighlightedHydrateApi : HydrateApi
+  const ReadPayloadApiSection = highlightCode ? HighlightedReadPayloadApi : ReadPayloadApi
+  const TypesReferenceSection = highlightCode ? HighlightedTypesReference : TypesReference
+
   return html`
     <div>
       ${nav.mobile()}
@@ -78,11 +113,13 @@ export function ApiPage() {
               </h1>
               ${CopyPageMenu({ markdownPath: '/api.md' })}
             </div>
-            ${ReactiveApi()} ${WatchApi()} ${HtmlApi()} ${ComponentApi()}
-            ${PickApi()} ${NextTickApi()} ${RenderApi()} ${BoundaryApi()}
-            ${ToTemplateApi()} ${RenderDocumentApi()} ${RenderToStringApi()}
-            ${SerializePayloadApi()} ${HydrateApi()} ${ReadPayloadApi()}
-            ${TypesReference()}
+            ${ReactiveApiSection()} ${WatchApiSection()} ${HtmlApiSection()}
+            ${ComponentApiSection()} ${PickApiSection()}
+            ${NextTickApiSection()} ${RenderApiSection()} ${BoundaryApiSection()}
+            ${ToTemplateApiSection()} ${RenderDocumentApiSection()}
+            ${RenderToStringApiSection()} ${SerializePayloadApiSection()}
+            ${HydrateApiSection()} ${ReadPayloadApiSection()}
+            ${TypesReferenceSection()}
           </article>
         </div>
       </div>

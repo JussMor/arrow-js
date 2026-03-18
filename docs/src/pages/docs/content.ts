@@ -4,7 +4,9 @@ import {
   playgroundExampleHref,
   starterExampleId,
 } from '../../../play/example-meta.js'
+import { CodeBlock } from '../../components/CodeBlock'
 import { CliCommand } from '../../components/CliCommand'
+import { highlightedSection } from '../../components/highlighted-section'
 
 /**
  * All docs content sections. Each is a plain function — no local state needed
@@ -42,7 +44,13 @@ export function WhyArrow() {
   `
 }
 
-export function Quickstart() {
+export interface DocsContentOptions {
+  highlightCode?: boolean
+}
+
+export function Quickstart(options: DocsContentOptions = {}) {
+  const highlightCode = options.highlightCode !== false
+
   return html`
     <section id="quick-start" class="mb-16">
       <h2
@@ -59,20 +67,124 @@ export function Quickstart() {
         ${CliCommand()}
 
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-6">
-          Client only
+          Manual setup
         </h3>
         <p>
-          If you only need the tiny client runtime:
+          Prefer to wire things up yourself? Start with a Vite 8 project and add
+          the Arrow packages. These examples use TypeScript and the Vite
+          <code>vanilla-ts</code> starter.
         </p>
-        <div class="code-block">
-          <pre><code class="language-shell">pnpm add @arrow-js/core</code></pre>
-        </div>
+
+        ${CodeBlock({
+          lang: 'shell',
+          code: `pnpm create vite@latest arrow-app --template vanilla-ts
+cd arrow-app
+pnpm add @arrow-js/core @arrow-js/framework @arrow-js/ssr @arrow-js/hydrate
+pnpm add -D vite@8`,
+        }, highlightCode)}
+
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
+          <code>src/App.ts</code>
+        </h3>
+        ${CodeBlock({
+          lang: 'ts',
+          code: `import { component, html } from '@arrow-js/core'
+import { boundary } from '@arrow-js/framework'
+
+type WelcomeProps = {
+  message: string
+}
+
+const Welcome = component(async ({ message }: WelcomeProps) =>
+  html\`&lt;p&gt;\${message}&lt;/p&gt;\`
+)
+
+export function createApp() {
+  return html\`&lt;main&gt;
+    &lt;h1&gt;Arrow + Vite 8&lt;/h1&gt;
+    \${boundary(Welcome({ message: 'SSR first. Hydrated when the browser boots.' }))}
+  &lt;/main&gt;\`
+}`,
+        }, highlightCode)}
+
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
+          <code>src/entry-server.ts</code>
+        </h3>
+        ${CodeBlock({
+          lang: 'ts',
+          code: `import { renderToString, serializePayload } from '@arrow-js/ssr'
+import { createApp } from './App'
+
+export async function renderPage() {
+  const result = await renderToString(createApp())
+  return result
+}`,
+        }, highlightCode)}
+
+        <p>
+          On the client, read the serialized payload and hydrate the same view:
+        </p>
+
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
+          <code>src/entry-client.ts</code>
+        </h3>
+        ${CodeBlock({
+          lang: 'ts',
+          code: `import { hydrate, readPayload } from '@arrow-js/hydrate'
+import { createApp } from './App'
+
+const root = document.getElementById('app')
+if (!root) throw new Error('Missing #app root')
+
+await hydrate(root, createApp(), readPayload())`,
+        }, highlightCode)}
+
+        <p>
+          This is the shape used by the docs app itself. The server sends HTML
+          immediately, then the browser hydrates the existing DOM instead of
+          replacing it.
+        </p>
+
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-6">
+          Other ways to install
+        </h3>
+        <p>
+          Arrow still works fine without a build tool. If you only need the core
+          runtime, a simple module import is enough.
+        </p>
+
+        <h4 class="font-semibold text-zinc-800 dark:text-zinc-200">
+          From npm:
+        </h4>
+        ${CodeBlock({
+          lang: 'shell',
+          code: 'npm install @arrow-js/core',
+        }, highlightCode)}
+
+        <h4 class="font-semibold text-zinc-800 dark:text-zinc-200">
+          From a CDN:
+        </h4>
+        ${CodeBlock({
+          lang: 'html',
+          code: `&lt;script type="module"&gt;
+  import { reactive, html } from 'https://esm.sh/@arrow-js/core'
+&lt;/script&gt;`,
+        }, highlightCode)}
 
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-4">
           Editor support
         </h3>
         <p>
-          If you're still using an IDE you can use the <a href="https://marketplace.visualstudio.com/items?itemName=StandardAgents.arrowjs-syntax">ArrowJS VSCode extension</a> to get syntax highlighting for the html template literals.
+          Since Arrow uses tagged template literals, its syntax is very similar
+          to lit-html. If you are using VSCode, install the
+          <a
+            href="https://marketplace.visualstudio.com/items?itemName=bierner.lit-html"
+            class="text-arrow-550 dark:text-arrow-400 underline underline-offset-2"
+          >
+            lit-html
+          </a>
+          extension to enable syntax highlighting on <code>html</code> blocks.
+          Arrow also ships TypeScript definitions for full editor support.
         </p>
       </div>
     </section>
@@ -621,6 +733,7 @@ interface ExampleEntry {
   id: string
   title: string
   description: string
+  icon?: string
   sourceUrl?: string
 }
 
@@ -655,7 +768,7 @@ export function Examples() {
                   ${entry.description}
                 </p>
                 <span
-                  class="text-sm font-medium text-arrow-600 dark:text-arrow-400 group-hover:underline underline-offset-2"
+                  class="text-sm font-medium text-arrow-550 dark:text-arrow-400 group-hover:underline underline-offset-2 transition-colors"
                 >Open in Playground &rarr;</span>
               </a>
             `,
@@ -680,3 +793,32 @@ export function Examples() {
     </section>
   `
 }
+
+export const HighlightedWhyArrow = highlightedSection(
+  WhyArrow,
+  'docs-why-arrow'
+)
+export const HighlightedComponents = highlightedSection(
+  Components,
+  'docs-components'
+)
+export const HighlightedReactiveData = highlightedSection(
+  ReactiveData,
+  'docs-reactive-data'
+)
+export const HighlightedWatchingData = highlightedSection(
+  WatchingData,
+  'docs-watching-data'
+)
+export const HighlightedTemplates = highlightedSection(
+  Templates,
+  'docs-templates'
+)
+export const HighlightedRouting = highlightedSection(
+  Routing,
+  'docs-routing'
+)
+export const HighlightedExamples = highlightedSection(
+  Examples,
+  'docs-examples'
+)

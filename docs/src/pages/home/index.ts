@@ -8,14 +8,19 @@ import {
   playgroundExampleHref,
 } from '../../../play/example-meta.js'
 import {
+  WhyArrow,
   Quickstart,
   Components,
+  HighlightedComponents,
   ReactiveData,
+  HighlightedReactiveData,
   WatchingData,
+  HighlightedWatchingData,
   Templates,
   Routing,
+  HighlightedTemplates,
   Examples,
-  WhyArrow,
+  HighlightedExamples,
 } from '../docs/content'
 
 const homeNavGroups: NavGroup[] = [
@@ -48,11 +53,18 @@ const homeNavGroups: NavGroup[] = [
   },
 ]
 
-export function HomePage() {
+export function HomePage(options: { highlightCode?: boolean } = {}) {
+  const highlightCode = options.highlightCode !== false
   const nav = ScrollSpyNav(homeNavGroups)
+  const ComponentsSection = highlightCode ? HighlightedComponents : Components
+  const ReactiveDataSection = highlightCode ? HighlightedReactiveData : ReactiveData
+  const WatchingDataSection = highlightCode ? HighlightedWatchingData : WatchingData
+  const TemplatesSection = highlightCode ? HighlightedTemplates : Templates
+  const ExamplesSection = highlightCode ? HighlightedExamples : Examples
+
   return html`
     <div>
-      ${Hero()} ${nav.mobile()}
+      ${Hero({ highlightCode })} ${nav.mobile()}
 
       <div class="max-w-7xl mx-auto px-6 pt-20 pb-12">
         <div class="flex gap-12">
@@ -61,8 +73,10 @@ export function HomePage() {
             <div class="flex justify-end mb-4">
               ${CopyPageMenu({ markdownPath: '/docs.md' })}
             </div>
-            ${WhyArrow()} ${Quickstart()} ${ReactiveData()} ${Templates()}
-            ${Components()} ${WatchingData()} ${Routing()} ${Examples()}
+            ${WhyArrow()} ${Quickstart({ highlightCode })}
+            ${ComponentsSection()} ${ReactiveDataSection()}
+            ${WatchingDataSection()} ${TemplatesSection()}
+            ${Routing()} ${ExamplesSection()}
           </article>
         </div>
       </div>

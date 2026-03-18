@@ -1,4 +1,4 @@
-import '@shikijs/twoslash/style-rich.css'
+import type { ArrowTemplate } from '@arrow-js/core'
 import type {
   LanguageRegistration,
   ShikiTransformer,
@@ -7,6 +7,8 @@ import arrowTypes from '../play/arrow-types.d.ts?raw'
 import arrowHtmlInjectionGrammar from '../../packages/vscode-arrow-html/syntaxes/arrowjs-html.injection.tmLanguage.json'
 import arrowHtmlGrammar from '../../packages/vscode-arrow-html/syntaxes/arrowjs-html.tmLanguage.json'
 import FrameworkExamples from './framework-examples'
+import { normalizeLanguage } from './code-language'
+import type { SupportedLanguage } from './code-language'
 
 const TWOSLASH_TYPES_PATH = '/arrow-docs.d.ts'
 const TWOSLASH_REFERENCE = `/// <reference path="${TWOSLASH_TYPES_PATH}" />\n`
@@ -40,13 +42,19 @@ const ARROW_HTML_GRAMMAR = {
   name: 'text.html.arrowjs',
   embeddedLanguages: ['html', 'typescript'],
 } satisfies LanguageRegistration
-
-let highlighterLoader: ReturnType<typeof initHighlighter> | undefined
 const ARROW_TEMPLATE_PUNCTUATION_SCOPES = [
   'punctuation.definition.template-expression',
   'punctuation.section.embedded',
 ]
-type SupportedLanguage = 'js' | 'ts' | 'html' | 'shell'
+
+interface HighlightBlockOptions {
+  code: string
+  lang: SupportedLanguage
+  wrapperClass?: string
+  enableTwoslash?: boolean
+}
+
+let highlighterLoader: ReturnType<typeof initHighlighter> | undefined
 
 function getRequestUrl(input: RequestInfo | URL) {
   if (typeof input === 'string') return input
@@ -125,22 +133,6 @@ function stripTwoslashReferenceLine(html: string) {
   }
 
   return wrapper.outerHTML
-}
-
-function normalizeLanguage(language: string): SupportedLanguage {
-  const lang = language.replace('language-', '')
-
-  switch (lang) {
-    case 'javascript':
-      return 'js'
-    case 'typescript':
-      return 'ts'
-    case 'shell':
-    case 'bash':
-      return 'shell'
-    default:
-      return lang as SupportedLanguage
-  }
 }
 
 function hasArrowTemplatePunctuationScope(token: {
@@ -290,24 +282,65 @@ function renderCodeBlock(
     })
 
     return stripTwoslashReferenceLine(html)
-  } catch (error) {
+  } catch {
     return highlighter.codeToHtml(code, options)
   }
 }
 
-export default async function highlight() {
+function decorateHighlightedWrapper(
+  wrapper: Element | null | undefined,
+  {
+    code,
+    lang,
+    wrapperClass = 'code-block',
+    enableTwoslash = true,
+  }: HighlightBlockOptions
+) {
+  if (!(wrapper instanceof HTMLElement)) {
+    return ''
+  }
+
+  const container = document.createElement('div')
+  container.className = wrapperClass
+  container.dataset.codeSource = encodeURIComponent(code)
+  container.dataset.codeLang = lang
+  if (!enableTwoslash) {
+    container.dataset.disableTwoslash = 'true'
+  }
+  if (wrapper.classList.contains('twoslash')) {
+    container.dataset.hasTwoslash = 'true'
+  }
+  container.append(wrapper)
+  return container.outerHTML
+}
+
+export async function renderHighlightedCodeBlock(options: HighlightBlockOptions) {
   const { highlighter, arrowTemplatePunctuationTransformer, twoslashTransformer } =
     await loadHighlighter()
-  const codeBlocks = document.querySelectorAll('pre code[class*="language-"]')
+  const html = renderCodeBlock(
+    highlighter,
+    arrowTemplatePunctuationTransformer,
+    twoslashTransformer,
+    options.code,
+    options.lang,
+    options.enableTwoslash ?? true
+  )
+
+  return decorateHighlightedWrapper(createCodeWrapper(html), options)
+}
+
+export async function highlightCodeBlocks(root: ParentNode) {
+  const { highlighter, arrowTemplatePunctuationTransformer, twoslashTransformer } =
+    await loadHighlighter()
+  const codeBlocks = root.querySelectorAll('pre code[class*="language-"]')
 
   codeBlocks.forEach((block) => {
     const lang = normalizeLanguage(block.className)
     const pre = block.parentElement
-    const codeBlock = pre?.closest('.code-block')
+    const container = pre?.closest('.code-block, .hero-code')
     const encodedSource = block.getAttribute('data-code-source')
     const code = encodedSource ? decodeURIComponent(encodedSource) : block.textContent || ''
-    const enableTwoslash =
-      !block.closest('[data-disable-twoslash="true"]')
+    const enableTwoslash = !block.closest('[data-disable-twoslash="true"]')
     const html = renderCodeBlock(
       highlighter,
       arrowTemplatePunctuationTransformer,
@@ -318,12 +351,25 @@ export default async function highlight() {
     )
     const wrapper = createCodeWrapper(html)
 
-    if (wrapper) {
-      pre?.replaceWith(wrapper)
+    if (!(wrapper instanceof HTMLElement)) {
+      return
     }
 
-    if (codeBlock instanceof HTMLElement && wrapper?.classList.contains('twoslash')) {
-      codeBlock.dataset.hasTwoslash = 'true'
+    if (container instanceof HTMLElement) {
+      container.dataset.codeSource = encodeURIComponent(code)
+      container.dataset.codeLang = lang
+      if (wrapper.classList.contains('twoslash')) {
+        container.dataset.hasTwoslash = 'true'
+      }
     }
+
+    pre?.replaceWith(wrapper)
   })
+}
+
+export async function renderHighlightedSection(section: () => ArrowTemplate) {
+  const container = document.createElement('div')
+  section()(container)
+  await highlightCodeBlocks(container)
+  return container.innerHTML
 }

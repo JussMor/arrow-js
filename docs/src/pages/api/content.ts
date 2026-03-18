@@ -1,5 +1,6 @@
 import { html } from '@arrow-js/core'
 import { TsCodeBlock } from '../../components/TsCodeBlock'
+import { highlightedSection } from '../../components/highlighted-section'
 import {
   coreTypeReferenceSnippet,
   frameworkTypeReferenceSnippet,
@@ -1117,3 +1118,64 @@ export function TypesReference() {
     </section>
   `
 }
+
+export const HighlightedReactiveApi = highlightedSection(
+  ReactiveApi,
+  'api-reactive'
+)
+export const HighlightedWatchApi = highlightedSection(
+  WatchApi,
+  'api-watch'
+)
+export const HighlightedHtmlApi = highlightedSection(
+  HtmlApi,
+  'api-html'
+)
+export const HighlightedComponentApi = highlightedSection(
+  ComponentApi,
+  'api-component'
+)
+export const HighlightedPickApi = highlightedSection(
+  PickApi,
+  'api-pick'
+)
+export const HighlightedNextTickApi = highlightedSection(
+  NextTickApi,
+  'api-next-tick'
+)
+export const HighlightedRenderApi = highlightedSection(
+  RenderApi,
+  'api-render'
+)
+export const HighlightedBoundaryApi = highlightedSection(
+  BoundaryApi,
+  'api-boundary'
+)
+export const HighlightedToTemplateApi = highlightedSection(
+  ToTemplateApi,
+  'api-to-template'
+)
+export const HighlightedRenderDocumentApi = highlightedSection(
+  RenderDocumentApi,
+  'api-render-document'
+)
+export const HighlightedRenderToStringApi = highlightedSection(
+  RenderToStringApi,
+  'api-render-to-string'
+)
+export const HighlightedSerializePayloadApi = highlightedSection(
+  SerializePayloadApi,
+  'api-serialize-payload'
+)
+export const HighlightedHydrateApi = highlightedSection(
+  HydrateApi,
+  'api-hydrate'
+)
+export const HighlightedReadPayloadApi = highlightedSection(
+  ReadPayloadApi,
+  'api-read-payload'
+)
+export const HighlightedTypesReference = highlightedSection(
+  TypesReference,
+  'api-types'
+)

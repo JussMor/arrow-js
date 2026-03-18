@@ -1,6 +1,4 @@
 import { layout } from './layout'
-import { HomePage } from './pages/home/index'
-import { ApiPage } from './pages/api/index'
 
 const siteUrl = 'https://arrow-js.com'
 
@@ -22,20 +20,12 @@ const defaultImageUrl = `${siteUrl}/arrow-js-og-meta.webp`
 const defaultImageAlt =
   'ArrowJS logo on a light grid background with the text: A tiny (~5KB), blazing-fast, type-safe reactive framework. Zero dependencies and no build step required.'
 
-function createHomePage(url: string): DocsPage {
-  return {
-    title: 'ArrowJS — Reactive interfaces in pure JavaScript',
-    description:
-      'A ~5KB runtime with zero dependencies. Observable data, declarative DOM, and SSR built on platform primitives.',
-    canonicalUrl: `${siteUrl}/`,
-    imageUrl: defaultImageUrl,
-    imageAlt: defaultImageAlt,
-    ogType: 'website' as const,
-    view: layout(HomePage(), url),
-  }
-}
+async function createApiPage(
+  url: string,
+  options: { highlightCode?: boolean } = {}
+): Promise<DocsPage> {
+  const { ApiPage } = await import('./pages/api/index')
 
-function createApiPage(url: string): DocsPage {
   return {
     title: 'API Reference — Arrow',
     description:
@@ -44,12 +34,35 @@ function createApiPage(url: string): DocsPage {
     imageUrl: defaultImageUrl,
     imageAlt: defaultImageAlt,
     ogType: 'website' as const,
-    view: layout(ApiPage(), url),
+    view: layout(ApiPage(options), url),
   }
 }
 
-export function routeToPage(url: string): DocsPage {
-  const path = normalizePath(url)
-  if (path === '/api') return createApiPage(url)
-  return createHomePage(url)
+async function createHomePageWithOptions(
+  url: string,
+  options: { highlightCode?: boolean } = {}
+): Promise<DocsPage> {
+  const { HomePage } = await import('./pages/home/index')
+
+  return {
+    title: 'ArrowJS — Reactive interfaces in pure JavaScript',
+    description:
+      'A ~5KB runtime with zero dependencies. Observable data, declarative DOM, and SSR built on platform primitives.',
+    canonicalUrl: `${siteUrl}/`,
+    imageUrl: defaultImageUrl,
+    imageAlt: defaultImageAlt,
+    ogType: 'website' as const,
+    view: layout(HomePage(options), url),
+  }
 }
+
+export async function createPage(
+  url: string,
+  options: { highlightCode?: boolean } = {}
+): Promise<DocsPage> {
+  const path = normalizePath(url)
+  if (path === '/api') return createApiPage(url, options)
+  return createHomePageWithOptions(url, options)
+}
+
+export const routeToPage = createPage

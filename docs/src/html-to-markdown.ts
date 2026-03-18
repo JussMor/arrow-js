@@ -203,7 +203,7 @@ interface Token {
 function tokenize(html: string): Token[] {
   const tokens: Token[] = []
   const pattern =
-    /(<h2[^>]*>[\s\S]*?<\/h2>)|(<h3[^>]*>[\s\S]*?<\/h3>)|(<h4[^>]*>[\s\S]*?<\/h4>)|(<div class="code-block">\s*<pre><code[^>]*>[\s\S]*?<\/code>\s*<\/pre>\s*<\/div>)|(<div class="callout[^"]*">[\s\S]*?<\/div>[\s\S]*?<\/div>)|(<ul[^>]*>[\s\S]*?<\/ul>)|(<ol[^>]*>[\s\S]*?<\/ol>)|(<p[^>]*>[\s\S]*?<\/p>)/g
+    /(<h2[^>]*>[\s\S]*?<\/h2>)|(<h3[^>]*>[\s\S]*?<\/h3>)|(<h4[^>]*>[\s\S]*?<\/h4>)|(<div class="code-block"[^>]*>\s*<pre><code[^>]*>[\s\S]*?<\/code>\s*<\/pre>\s*<\/div>)|(<div class="callout[^"]*">[\s\S]*?<\/div>[\s\S]*?<\/div>)|(<ul[^>]*>[\s\S]*?<\/ul>)|(<ol[^>]*>[\s\S]*?<\/ol>)|(<p[^>]*>[\s\S]*?<\/p>)/g
 
   let lastIndex = 0
   let match: RegExpExecArray | null

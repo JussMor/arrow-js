@@ -1,17 +1,10 @@
 import { html } from '@arrow-js/core'
+import { decodeCodeEntities } from '../code-entities'
 
 const CUT_BEFORE = /^\/\/\s?---cut(?:-before)?---$/
 const CUT_AFTER = /^\/\/\s?---cut-after---$/
 const CUT_START = /^\/\/\s?---cut-start---$/
 const CUT_END = /^\/\/\s?---cut-end---$/
-
-function decodeCodeEntities(source: string) {
-  return source
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-}
 
 function createVisibleTwoslashPreview(source: string) {
   const lines = source.split('\n')

@@ -48,13 +48,61 @@ Short aliases exist but prefer the full names for readability:
 - `watch` / `w` — watcher
 - `component` / `c` — component wrapper
 
+## Code Example Architecture
+
+The docs site no longer runs Shiki/Twoslash in the browser on page load.
+Highlighting is now SSR/build-time only for the HTML docs pages, while the
+Markdown endpoints render plain code blocks.
+
+Current source of truth:
+
+- `docs/src/server-code-highlight.ts`
+  Server-only Shiki/Twoslash loader and DOM post-processor.
+- `docs/src/components/highlighted-section.ts`
+  Wraps static docs/API sections in async components that resolve highlighted
+  HTML on the server and serialize the result into hydration snapshots.
+- `docs/src/components/CodeBlock.ts`
+  Used for code blocks inside otherwise interactive sections like `Quickstart`
+  and `Hero`.
+- `docs/src/components/TsCodeBlock.ts`
+  Still used for partial Twoslash examples. It preserves the full hidden source
+  in `data-code-source` and shows a trimmed preview.
+- `docs/src/entry-client.ts`
+  Only hydrates, imports Twoslash CSS, and repositions popups. It must not
+  eagerly import Shiki/Twoslash runtime code.
+- `docs/src/entry-server.ts`
+  Renders normal HTML pages with highlighted code, but renders `/docs.md` and
+  `/api.md` with `highlightCode: false`.
+
+Implications:
+
+1. Do not reintroduce browser-side startup highlighting.
+   `docs/src/highlight.ts` is legacy. Do not wire it back into
+   `entry-client.ts` unless you are intentionally undoing the bundle-size work.
+
+2. Static sections should use `highlightedSection(...)`.
+   This is the preferred path for docs/API sections that contain code blocks but
+   no interactive state that must hydrate inside the section body.
+
+3. Interactive sections should use `CodeBlock(...)`.
+   Use this for places like the hero card or `Quickstart`, where the surrounding
+   section contains live UI and cannot be collapsed into a raw HTML snapshot.
+
+4. Markdown pages must stay on the plain path.
+   `/docs.md` and `/api.md` are generated from `createPage(url, { highlightCode: false })`.
+   If you add new highlighted rendering paths, make sure the plain path still
+   works and still produces clean markdown-compatible markup.
+
+5. Keep the highlighter server-only.
+   Any import of `shiki`, `@shikijs/twoslash`, or `twoslash-cdn` should stay
+   behind SSR-only code paths so those chunks do not appear in the client build.
+
 ## TypeScript Example Authoring
 
-The docs site uses Shiki + Twoslash in the browser. That means docs examples do
-not run against the repo's normal workspace module resolution by default. The
-docs sandbox is configured in:
+The Twoslash sandbox still exists, but it now runs during SSR/build instead of
+in the browser. The docs sandbox is configured in:
 
-- `docs/src/highlight.ts`
+- `docs/src/server-code-highlight.ts`
 - `docs/play/arrow-types.d.ts`
 - `docs/src/components/TsCodeBlock.ts`
 
@@ -94,9 +142,9 @@ Follow these rules when adding or editing TypeScript examples:
    assertion utilities. Do not turn it into a second source of truth for public
    API types.
 
-7. If a snippet imports a local example module, wire it into Twoslash.
-   Add the file content to the `fsMap` in `docs/src/highlight.ts` so imports
-   like `./App` resolve inside the browser Twoslash sandbox.
+7. If a snippet imports a local example module, wire it into the Twoslash fsMap.
+   Add the file content to the `fsMap` in `docs/src/server-code-highlight.ts`
+   so imports like `./App` resolve inside the docs sandbox.
 
 ---
 

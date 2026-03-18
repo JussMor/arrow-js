@@ -1,6 +1,6 @@
+import '@shikijs/twoslash/style-rich.css'
 import { hydrate, readPayload } from '@arrow-js/hydrate'
-import { routeToPage } from './app'
-import highlight from './highlight'
+import { createPage } from './app'
 
 const payload = readPayload()
 const root = document.getElementById('app')
@@ -9,8 +9,9 @@ if (!root) {
   throw new Error('Unable to find hydration root "app".')
 }
 
-await hydrate(root, routeToPage(window.location.pathname).view, payload)
-await highlight()
+const page = await createPage(window.location.pathname)
+
+await hydrate(root, page.view, payload)
 
 // Fix twoslash popups: use position:fixed so they escape overflow:auto parents
 document.addEventListener('mouseenter', (e) => {
@@ -28,6 +29,33 @@ document.addEventListener('mouseenter', (e) => {
 
 const hero = document.getElementById('hero')
 if (hero) {
-  const { initCharacterRain } = await import('./character-rain')
-  initCharacterRain(hero)
+  const canLoadCharacterRain =
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+    navigator.connection?.saveData !== true
+
+  if (canLoadCharacterRain) {
+    const loadCharacterRain = async () => {
+      const { initCharacterRain } = await import('./character-rain')
+      initCharacterRain(hero)
+    }
+
+    const scheduleCharacterRain = () => {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => {
+          void loadCharacterRain()
+        }, { timeout: 1500 })
+        return
+      }
+
+      window.setTimeout(() => {
+        void loadCharacterRain()
+      }, 500)
+    }
+
+    if (document.readyState === 'complete') {
+      scheduleCharacterRain()
+    } else {
+      window.addEventListener('load', scheduleCharacterRain, { once: true })
+    }
+  }
 }

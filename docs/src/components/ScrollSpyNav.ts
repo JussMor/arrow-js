@@ -98,9 +98,9 @@ export function ScrollSpyNav(groups: NavGroup[]) {
       >
         <div class="flex items-center gap-1 py-2 px-6 min-w-max">
           ${allItems.map(
-            (item) =>
-              item.href
-                ? html`<a href="${item.href}" class="mobile-nav-link nav-link-external"
+                (item) =>
+                  item.href
+                    ? html`<a href="${item.href}" class="mobile-nav-link nav-link-external"
                     >${item.label}</a
                   >`
                 : html`<a

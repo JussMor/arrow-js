@@ -5,14 +5,26 @@ import {
   WhyArrow,
   Quickstart,
   Components,
+  HighlightedComponents,
   ReactiveData,
+  HighlightedReactiveData,
   WatchingData,
+  HighlightedWatchingData,
   Templates,
   Routing,
+  HighlightedTemplates,
   Examples,
+  HighlightedExamples,
 } from './content'
 
-export function DocsPage() {
+export function DocsPage(options: { highlightCode?: boolean } = {}) {
+  const highlightCode = options.highlightCode !== false
+  const ComponentsSection = highlightCode ? HighlightedComponents : Components
+  const ReactiveDataSection = highlightCode ? HighlightedReactiveData : ReactiveData
+  const WatchingDataSection = highlightCode ? HighlightedWatchingData : WatchingData
+  const TemplatesSection = highlightCode ? HighlightedTemplates : Templates
+  const ExamplesSection = highlightCode ? HighlightedExamples : Examples
+
   return html`
     <div class="max-w-7xl mx-auto px-6 py-12">
       <div class="flex gap-12">
@@ -27,7 +39,8 @@ export function DocsPage() {
             ${CopyPageMenu({ markdownPath: '/docs.md' })}
           </div>
 
-          ${WhyArrow()} ${Quickstart()}
+          ${WhyArrow()} ${Quickstart({ highlightCode })}
+          ${ComponentsSection()}
 
           <div
             class="border-t border-zinc-200 dark:border-zinc-800 my-12 pt-12"
@@ -39,8 +52,8 @@ export function DocsPage() {
             </h1>
           </div>
 
-          ${ReactiveData()} ${Templates()} ${Components()} ${WatchingData()}
-          ${Routing()} ${Examples()}
+          ${ReactiveDataSection()} ${WatchingDataSection()}
+          ${TemplatesSection()} ${Routing()} ${ExamplesSection()}
         </article>
       </div>
     </div>

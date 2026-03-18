@@ -1,9 +1,12 @@
 import { html, reactive } from '@arrow-js/core'
+import { CodeBlock } from '../../components/CodeBlock'
 import { CliCommand } from '../../components/CliCommand'
 
 const heroData = reactive({ count: 0 })
 
-export function Hero() {
+export function Hero(options: { highlightCode?: boolean } = {}) {
+  const highlightCode = options.highlightCode !== false
+
   return html`
     <section
       id="hero"
@@ -67,28 +70,26 @@ export function Hero() {
               ></div>
             </div>
             <span
-              class="ml-2 text-xs text-zinc-400 dark:text-zinc-600 font-mono"
+              class="ml-2 text-xs text-zinc-500 dark:text-zinc-400 font-mono"
             >
               counter.ts
             </span>
           </div>
-          <div class="hero-code">
-            <pre><code class="language-ts">import { html, reactive } from '@arrow-js/core'
+          ${CodeBlock({
+            lang: 'ts',
+            wrapperClass: 'hero-code',
+            code: `import { component, html, reactive } from '@arrow-js/core'
 
 const data = reactive({ count: 0 })
 
-html&#96;
-  &lt;button @click="&#36;{() =&gt; data.count++}"&gt;
-    Clicked &#36;{() =&gt; data.count} times
-  &lt;/button&gt;
-&#96;(document.body)</code></pre>
-          </div>
+html&#96;&#36;{Counter()}&#96;(document.body)`,
+          }, highlightCode)}
           <div
             class="border-t border-zinc-200 dark:border-zinc-800 px-5 py-4 rounded-b-xl bg-white dark:bg-zinc-900/80"
           >
             <div class="flex items-center gap-2 mb-3">
               <span
-                class="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-600"
+                class="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
               >
                 Result
               </span>

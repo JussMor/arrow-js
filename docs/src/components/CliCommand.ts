@@ -100,7 +100,7 @@ export const CliCommand = component(() => {
       data-rain-collider
       @click="${copy}"
       class="cli-command"
-      aria-label="Copy install command"
+      aria-label="npx @arrow-js/skill. Copy install command"
     >
       <span class="cli-prompt">$</span>
       <code class="cli-text">

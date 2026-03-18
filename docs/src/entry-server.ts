@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { renderToString, serializePayload } from '@arrow-js/ssr'
-import { routeToPage } from './app'
+import { createPage } from './app'
 import { htmlToMarkdown } from './html-to-markdown'
 import {
   playgroundExampleMeta,
@@ -48,14 +48,15 @@ function renderHead(
 }
 
 export async function renderPage(url: string) {
-  const page = routeToPage(url)
+  const page = await createPage(url)
   const result = await renderToString(page.view)
+  const { html: _expectedHtml, ...payload } = result.payload
 
   return {
     html: result.html,
     head: renderHead(page),
     payloadScript: serializePayload({
-      ...result.payload,
+      ...payload,
       path: url,
     }),
     status: 200,
@@ -63,9 +64,16 @@ export async function renderPage(url: string) {
 }
 
 export async function renderMarkdown(url: string) {
-  const page = routeToPage(url)
+  const page = await createPage(url, { highlightCode: false })
   const result = await renderToString(page.view)
-  return htmlToMarkdown(result.html)
+  const markdown = htmlToMarkdown(result.html)
+  const path = new URL(url, 'http://arrow.local').pathname
+
+  if (path === '/') {
+    return markdown.replace(/\n## Examples[\s\S]*$/m, '\n')
+  }
+
+  return markdown
 }
 
 const langFor: Record<string, string> = {
