@@ -1,28 +1,16 @@
-import { html, reactive } from '@arrow-js/core'
-import { CodeBlock } from '../../components/CodeBlock'
+import { html } from '@arrow-js/core'
 import { CliCommandIsland } from '../../components/CliCommand'
+import { ChatMock } from './ChatMock'
 
-const heroData = reactive({ count: 0 })
-
-export function HeroCounter() {
-  return html`
-    <button
-      id="hero-counter"
-      @click="${() => heroData.count++}"
-      class="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700 transition-colors cursor-pointer outline-none"
-    >
-      Clicked ${() => heroData.count} times
-    </button>
-  `
+export function HeroChat() {
+  return ChatMock()
 }
 
-export function Hero(options: { highlightCode?: boolean } = {}) {
-  const highlightCode = options.highlightCode !== false
-
+export function Hero() {
   return html`
     <section
       id="hero"
-      class="relative min-h-[92vh] flex flex-col items-center justify-center px-6 pt-20 pb-16 overflow-x-clip"
+      class="relative flex flex-col items-center justify-center pt-28 pb-20 lg:pt-32 lg:pb-24 min-h-[80vh] overflow-x-clip"
     >
       <div class="hero-grid absolute inset-0 pointer-events-none"></div>
       <div
@@ -34,83 +22,40 @@ export function Hero(options: { highlightCode?: boolean } = {}) {
         ></div>
       </div>
 
-      <div class="relative text-center max-w-5xl mx-auto">
-        <h1
-          data-rain-collider="text"
-          class="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter leading-[1.0] text-zinc-900 dark:text-white"
-        >
-          The UI framework for
-          <span
-            class="text-transparent bg-clip-text bg-gradient-to-r from-arrow-400 via-arrow-500 to-arrow-600"
+      <div
+        class="relative w-full max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-10 lg:gap-10 items-stretch"
+      >
+        <div class="max-w-xl lg:max-w-xl flex flex-col justify-center">
+          <h1
+            data-rain-collider="text"
+            class="text-4xl sm:text-5xl xl:text-[5rem] text-balance font-extrabold tracking-tighter leading-[1.08] text-zinc-900 dark:text-white"
           >
-            &nbsp;coding&nbsp;agents&nbsp;
-          </span>
-        </h1>
-
-        <p
-          class="mt-6 md:mt-8 text-lg md:text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed text-balance"
-        >
-          ArrowJS is a tiny
-          <span class="font-semibold text-arrow-500">(~5KB)</span>,
-          token-efficient, blazing-fast, type-safe library for building reactive
-          interfaces in pure JavaScript. <br /><br />Optional SSR support, zero
-          dependencies, and no build step required.
-        </p>
-
-        <div class="mt-8 md:mt-10 flex justify-center">
-          ${CliCommandIsland()}
-        </div>
-      </div>
-
-      <div class="relative mt-14 md:mt-20 w-full max-w-xl mx-auto">
-        <div
-          data-rain-collider
-          class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 overflow-visible shadow-2xl shadow-zinc-900/5 dark:shadow-arrow-500/5"
-        >
-          <div
-            class="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-zinc-900 rounded-t-xl"
-          >
-            <div class="flex gap-1.5">
-              <div
-                class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"
-              ></div>
-              <div
-                class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"
-              ></div>
-              <div
-                class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"
-              ></div>
-            </div>
+            The first UI framework for the
             <span
-              class="ml-2 text-xs text-zinc-500 dark:text-zinc-400 font-mono"
+              class="text-transparent bg-clip-text bg-gradient-to-r from-arrow-400 via-arrow-500 to-arrow-600"
             >
-              counter.ts
+              agentic era&nbsp;
             </span>
-          </div>
-          ${CodeBlock({
-            lang: 'ts',
-            wrapperClass: 'hero-code',
-            code: `import { html, reactive } from '@arrow-js/core'
+          </h1>
 
-const data = reactive({ count: 0 })
-
-html\`
-  &lt;button @click="\${() =&gt; data.count++}"&gt;
-    Clicked \${() =&gt; data.count} times
-  &lt;/button&gt;
-\`(document.body)`,
-          }, highlightCode)}
-          <div
-            class="border-t border-zinc-200 dark:border-zinc-800 px-5 py-4 rounded-b-xl bg-white dark:bg-zinc-900/80"
+          <p
+            class="mt-6 text-base text-pretty sm:text-[1.0625rem] text-zinc-600 dark:text-zinc-400 leading-relaxed"
           >
-            <div class="flex items-center gap-2 mb-3">
-              <span
-                class="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
-              >
-                Result
-              </span>
-            </div>
-            <div id="hero-counter-root">${HeroCounter()}</div>
+            A tiny, blazing-fast, zero dependency, type-safe framework with no
+            build step required. <br /><br />
+            ArrowJS ships with the ability to isolate component logic in Web
+            Assembly sandboxes while rendering full inline DOM directly in your
+            app — no iframes.<br /><br />
+            Ship safe, flexible, on-demand UIs for your users without having to
+            plan components in advance.
+          </p>
+
+          <div class="mt-8">${CliCommandIsland()}</div>
+        </div>
+
+        <div class="relative w-full flex flex-col lg:translate-x-6 xl:translate-x-10">
+          <div id="hero-chat-root" class="flex flex-col flex-1">
+            ${HeroChat()}
           </div>
         </div>
       </div>
