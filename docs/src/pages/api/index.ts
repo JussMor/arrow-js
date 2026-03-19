@@ -31,6 +31,8 @@ import {
   HighlightedHydrateApi,
   ReadPayloadApi,
   HighlightedReadPayloadApi,
+  SandboxApi,
+  HighlightedSandboxApi,
   TypesReference,
   HighlightedTypesReference,
 } from './content'
@@ -55,6 +57,7 @@ export function ApiPage(options: { highlightCode?: boolean } = {}) {
     highlightCode ? HighlightedSerializePayloadApi : SerializePayloadApi
   const HydrateApiSection = highlightCode ? HighlightedHydrateApi : HydrateApi
   const ReadPayloadApiSection = highlightCode ? HighlightedReadPayloadApi : ReadPayloadApi
+  const SandboxApiSection = highlightCode ? HighlightedSandboxApi : SandboxApi
   const TypesReferenceSection = highlightCode ? HighlightedTypesReference : TypesReference
 
   return html`
@@ -78,6 +81,7 @@ export function ApiPage(options: { highlightCode?: boolean } = {}) {
             ${ToTemplateApiSection()} ${RenderDocumentApiSection()}
             ${RenderToStringApiSection()} ${SerializePayloadApiSection()}
             ${HydrateApiSection()} ${ReadPayloadApiSection()}
+            ${SandboxApiSection()}
             ${TypesReferenceSection()}
           </article>
         </div>

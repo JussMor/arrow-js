@@ -6,6 +6,8 @@ import frameworkHttpSource from '../../../packages/framework/src/http.ts?raw'
 import frameworkRenderSource from '../../../packages/framework/src/render.ts?raw'
 import frameworkSsrSource from '../../../packages/framework/src/ssr.ts?raw'
 import hydrateSource from '../../../packages/hydrate/src/index.ts?raw'
+import sandboxHostSource from '../../../packages/sandbox/src/host/instance.ts?raw'
+import sandboxProtocolSource from '../../../packages/sandbox/src/shared/protocol.ts?raw'
 
 function stripComments(source: string) {
   return source
@@ -66,11 +68,14 @@ export const coreTypeReferenceSnippet = joinBlocks(
   extractBlock(coreReactiveSource, 'export type Reactive<T extends ReactiveTarget> ='),
   extractBlock(coreReactiveSource, 'export interface PropertyObserver<T> {'),
   extractBlock(coreComponentSource, 'export type Props<T extends ReactiveTarget> ='),
+  extractBlock(coreComponentSource, 'export type EventMap ='),
+  extractBlock(coreComponentSource, 'export type Events<T extends EventMap> ='),
+  extractBlock(coreComponentSource, 'export type Emit<T extends EventMap> ='),
   extractBlock(coreComponentSource, 'export type ComponentFactory ='),
   extractBlock(coreComponentSource, 'export interface AsyncComponentOptions<'),
   extractBlock(coreComponentSource, 'export interface ComponentCall {'),
-  extractBlock(coreComponentSource, 'export interface Component {'),
-  extractBlock(coreComponentSource, 'export interface ComponentWithProps<T extends ReactiveTarget> {')
+  extractBlock(coreComponentSource, 'export interface Component<TEvents extends EventMap = EventMap> {'),
+  extractBlock(coreComponentSource, 'export interface ComponentWithProps<')
 )
 
 export const frameworkTypeReferenceSnippet = joinBlocks(
@@ -99,4 +104,13 @@ export const hydrateTypeReferenceSnippet = joinBlocks(
   extractBlock(hydrateSource, 'export interface HydrationMismatchDetails {'),
   extractBlock(hydrateSource, 'export interface HydrationOptions {'),
   extractBlock(hydrateSource, 'export interface HydrationResult {')
+)
+
+export const sandboxTypeReferenceSnippet = joinBlocks(
+  '// ---cut-start---',
+  "import type { ArrowTemplate } from '@arrow-js/core'",
+  '// ---cut-end---',
+  extractBlock(sandboxProtocolSource, 'export interface SandboxProps {'),
+  extractBlock(sandboxProtocolSource, 'export interface SandboxEvents {'),
+  extractBlock(sandboxHostSource, 'export function sandbox(')
 )

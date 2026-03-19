@@ -36,6 +36,10 @@ export const apiNavGroups: NavGroup[] = [
     ],
   },
   {
+    title: '@arrow-js/sandbox',
+    items: [{ id: 'sandbox', label: 'sandbox()' }],
+  },
+  {
     title: 'Types',
     items: [{ id: 'types', label: 'Type Reference' }],
   },

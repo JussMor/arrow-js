@@ -6,6 +6,7 @@ import {
 } from '../../../play/example-meta.js'
 import { CodeBlock } from '../../components/CodeBlock'
 import { CliCommandIsland } from '../../components/CliCommand'
+import { TsCodeBlock } from '../../components/TsCodeBlock'
 import { highlightedSection } from '../../components/highlighted-section'
 
 /**
@@ -621,6 +622,69 @@ html\`&lt;button @click="\${(e) =&gt; console.log(e)}"&gt;Click&lt;/button&gt;\`
   `
 }
 
+export function SandboxGuide() {
+  return html`
+    <section id="sandbox" class="mb-16">
+      <h2
+        class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4"
+      >
+        Sandbox
+      </h2>
+      <div class="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
+        <p>
+          <code>@arrow-js/sandbox</code> lets you run JS/TS/Arrow inside
+          a WASM virtual machine while the host page keeps ownership of the real DOM rendered by <code>html()</code>. These two environments only communicate through serialized messages, which allows safe execution of AI-generated code and makes the sandbox a good fit for inline UI produced by chat agents.
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>
+            <code>source</code> must include exactly one
+            <code>main.ts</code> or <code>main.js</code> entry file.
+          </li>
+          <li>
+            <code>main.css</code> is optional and is injected into the sandbox
+            host root.
+          </li>
+          <li>
+            The sandbox renders through a stable <code>&lt;arrow-sandbox&gt;</code>
+            custom element.
+          </li>
+          <li>
+            Call <code>output(payload)</code> inside sandboxed code to send data
+            back through the optional <code>events.output</code> handler.
+          </li>
+        </ul>
+
+        ${TsCodeBlock(`import { html } from '@arrow-js/core'
+import { sandbox } from '@arrow-js/sandbox'
+
+const root = document.getElementById('app')
+if (!root) throw new Error('Missing #app root')
+
+const source = {
+  'main.ts': [
+    "import { html, reactive } from '@arrow-js/core'",
+    '',
+    'const state = reactive({ count: 0 })',
+    '',
+    'export default html\`<button @click="\${() => state.count++}">',
+    '  Count \${() => state.count}',
+    '</button>\`',
+  ].join('\\n'),
+  'main.css': [
+    'button {',
+    '  font: inherit;',
+    '  padding: 0.75rem 1rem;',
+    '}',
+  ].join('\\n'),
+}
+
+html\`<section>\${sandbox({ source })}</section>\`(root)`)}
+
+      </div>
+    </section>
+  `
+}
+
 export function ServerRendering() {
   return html`
     <section id="ssr" class="mb-16">
@@ -854,6 +918,10 @@ export const HighlightedWatchingData = highlightedSection(
 export const HighlightedTemplates = highlightedSection(
   Templates,
   'docs-templates'
+)
+export const HighlightedSandboxGuide = highlightedSection(
+  SandboxGuide,
+  'docs-sandbox'
 )
 export const HighlightedRouting = highlightedSection(
   Routing,

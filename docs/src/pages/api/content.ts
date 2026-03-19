@@ -5,6 +5,7 @@ import {
   coreTypeReferenceSnippet,
   frameworkTypeReferenceSnippet,
   hydrateTypeReferenceSnippet,
+  sandboxTypeReferenceSnippet,
   ssrTypeReferenceSnippet,
 } from '../../components/typeReferenceSnippets'
 
@@ -1073,6 +1074,107 @@ const payloadFromFrame = iframe?.contentDocument
   `
 }
 
+export function SandboxApi() {
+  return html`
+    <section id="sandbox" class="mb-16">
+      <h2
+        class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4"
+      >
+        sandbox()
+      </h2>
+      <div class="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
+        <p>
+          Returns an <code>ArrowTemplate</code> that renders a stable
+          <code>&lt;arrow-sandbox&gt;</code> host element and boots a QuickJS +
+          WASM VM behind it.
+        </p>
+
+        <h3
+          class="text-lg font-semibold text-zinc-900 dark:text-white pt-4"
+        >
+          Signature
+        </h3>
+        ${TsCodeBlock(`import type { ArrowTemplate } from '@arrow-js/core'
+
+interface SandboxProps {
+  source: Record&lt;string, string&gt;
+  shadowDOM?: boolean;
+  onError?: (error: Error | string) =&gt; void;
+  debug?: boolean;
+}
+
+interface SandboxEvents {
+  output?: (payload: unknown) =&gt; void;
+}
+
+declare function sandbox(
+  props: SandboxProps,
+  events?: SandboxEvents
+): ArrowTemplate`)}
+
+        <h3
+          class="text-lg font-semibold text-zinc-900 dark:text-white pt-4"
+        >
+          Rules
+        </h3>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>
+            <code>source</code> must contain exactly one
+            <code>main.ts</code> or <code>main.js</code> entry file.
+          </li>
+          <li>
+            <code>main.css</code> is optional and is injected into the sandbox
+            host root. By default that root is an open shadow root.
+          </li>
+          <li>
+            Pass <code>shadowDOM: false</code> to render into the custom
+            element’s light DOM instead.
+          </li>
+          <li>
+            Use the optional second argument to receive
+            <code>output(payload)</code> calls from inside the sandbox.
+          </li>
+        </ul>
+
+        <h3
+          class="text-lg font-semibold text-zinc-900 dark:text-white pt-4"
+        >
+          Usage
+        </h3>
+        ${TsCodeBlock(`import { html } from '@arrow-js/core'
+import { sandbox } from '@arrow-js/sandbox'
+
+const source = {
+  'main.ts': [
+    "import { html, reactive } from '@arrow-js/core'",
+    '',
+    'const state = reactive({ count: 0 })',
+    '',
+    'export default html\`<button @click="\${() => state.count++}">',
+    '  Count \${() => state.count}',
+    '</button>\`',
+  ].join('\\n'),
+}
+
+html\`<main>\${sandbox({ source }, {
+  output(payload) {
+    console.log(payload)
+  },
+})}</main>\``)}
+
+        <div class="callout callout-tip">
+          <div class="callout-label">Security Model</div>
+          <p>
+            User-authored Arrow code runs inside QuickJS/WASM. The host page
+            only mounts trusted DOM and forwards sanitized event payloads. It
+            does not run user callbacks in the window realm.
+          </p>
+        </div>
+      </div>
+    </section>
+  `
+}
+
 export function TypesReference() {
   return html`
     <section id="types" class="mb-16">
@@ -1114,6 +1216,13 @@ export function TypesReference() {
           @arrow-js/hydrate
         </h3>
         ${TsCodeBlock(hydrateTypeReferenceSnippet)}
+
+        <h3
+          class="text-lg font-semibold text-zinc-900 dark:text-white pt-4"
+        >
+          @arrow-js/sandbox
+        </h3>
+        ${TsCodeBlock(sandboxTypeReferenceSnippet)}
       </div>
     </section>
   `
@@ -1174,6 +1283,10 @@ export const HighlightedHydrateApi = highlightedSection(
 export const HighlightedReadPayloadApi = highlightedSection(
   ReadPayloadApi,
   'api-read-payload'
+)
+export const HighlightedSandboxApi = highlightedSection(
+  SandboxApi,
+  'api-sandbox'
 )
 export const HighlightedTypesReference = highlightedSection(
   TypesReference,

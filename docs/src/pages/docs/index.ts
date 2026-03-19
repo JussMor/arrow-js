@@ -12,8 +12,10 @@ import {
   WatchingData,
   HighlightedWatchingData,
   Templates,
+  SandboxGuide,
   Routing,
   HighlightedTemplates,
+  HighlightedSandboxGuide,
   Examples,
   HighlightedExamples,
 } from './content'
@@ -24,6 +26,7 @@ export function DocsPage(options: { highlightCode?: boolean } = {}) {
   const ReactiveDataSection = highlightCode ? HighlightedReactiveData : ReactiveData
   const WatchingDataSection = highlightCode ? HighlightedWatchingData : WatchingData
   const TemplatesSection = highlightCode ? HighlightedTemplates : Templates
+  const SandboxSection = highlightCode ? HighlightedSandboxGuide : SandboxGuide
   const ExamplesSection = highlightCode ? HighlightedExamples : Examples
 
   return html`
@@ -55,7 +58,7 @@ export function DocsPage(options: { highlightCode?: boolean } = {}) {
           </div>
 
           ${ReactiveDataSection()} ${WatchingDataSection()}
-          ${TemplatesSection()} ${Routing()} ${ExamplesSection()}
+          ${TemplatesSection()} ${SandboxSection()} ${Routing()} ${ExamplesSection()}
         </article>
       </div>
     </div>
