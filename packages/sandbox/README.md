@@ -102,13 +102,28 @@ export function sandbox(
 - User-authored logic runs inside QuickJS/WASM.
 - The host page mutates the real DOM through trusted renderer code only.
 - Event listeners on the real DOM forward sanitized payloads back to the VM.
-- The sandbox does not receive direct access to `window`, `document`, DOM nodes, timers, storage, fetch, or arbitrary browser APIs.
+- The sandbox does not receive direct access to `window`, `document`, DOM nodes, storage, or arbitrary browser APIs.
 - `html` templates are preprocessed into descriptors. The host never evaluates user expressions.
 - DOM listeners in the host never attach raw user callbacks from sandbox code.
 
-Explicitly bridged globals currently include `setTimeout`, `clearTimeout`, `setInterval`, and `clearInterval`. The host owns the real timers, but the registered callbacks still execute inside QuickJS.
+Explicitly bridged globals currently include `setTimeout`, `clearTimeout`, `setInterval`, `clearInterval`, and a restricted `fetch()` proxy. The host owns the real timers and networking, but the registered callbacks and response handling still execute inside QuickJS.
 
 Event payloads are forwarded as plain data. The VM receives a narrow snapshot, not a live DOM event object.
+
+### Sandboxed fetch
+
+The sandbox `fetch()` bridge is intentionally narrower than browser `window.fetch`:
+
+- only absolute `https:` URLs are allowed, plus `http:` for localhost addresses
+- no `Request` objects, no relative URLs, and no inherited browser request context
+- credentials are always forced to `omit`
+- `referrerPolicy` is always forced to `no-referrer`
+- `mode` is always forced to `cors`
+- request headers are user-supplied only and sensitive ambient headers such as `authorization`, `cookie`, `origin`, `referer`, and `user-agent` are blocked
+- responses are exposed as a small Response-like object with `ok`, `status`, `statusText`, `url`, `redirected`, `headers`, `text()`, `json()`, and `arrayBuffer()`
+- requests time out after 15 seconds and responses are capped at 1 MB
+
+This bridge is designed to avoid ambient page credentials and host DOM access. It is still routed through the browser networking stack, so browser-controlled metadata such as `Origin` or `User-Agent` may still exist at the HTTP layer.
 
 ## Supported subset
 
@@ -117,8 +132,10 @@ Event payloads are forwarded as plain data. The VM receives a narrow snapshot, n
 - event bindings such as `@click`
 - nested elements
 - sync `component()` composition
+- async `component()` composition with VM-owned fallback/render/error handling
 - `pick()` / `props()` narrowing for component props
 - reactive updates inside the VM
+- restricted bridged `fetch()` requests and JSON/text response handling
 - bridged timer callbacks via `setTimeout` and `setInterval`
 - arrays and conditional child regions
 - multi-root templates without a wrapper element
@@ -127,7 +144,6 @@ Event payloads are forwarded as plain data. The VM receives a narrow snapshot, n
 ## Unsupported or partial
 
 - full `@arrow-js/core` parity
-- async `component()` factories
 - keyed list diffing
 - direct DOM refs or real DOM node access
 - arbitrary external imports
@@ -149,3 +165,5 @@ pnpm --filter @arrow-js/sandbox demo
 pnpm exec vitest run packages/sandbox/src/index.spec.ts
 pnpm exec playwright test -c playwright.sandbox.config.ts
 ```
+
+The demo includes a weather mini-app that fetches current conditions from the public Open-Meteo forecast API.

@@ -29,6 +29,19 @@ interface ComponentCall {
   key: (key: unknown) => ComponentCall
 }
 
+type SandboxComponent = (input?: ComponentProps) => ComponentCall
+
+type AsyncStatus = 'idle' | 'pending' | 'resolved' | 'rejected'
+
+interface AsyncSandboxComponentOptions<TValue = unknown> {
+  fallback?: unknown
+  onError?: (error: unknown, props: Record<PropertyKey, unknown> | undefined) => unknown
+  render?: (value: TValue, props: Record<PropertyKey, unknown> | undefined) => unknown
+  serialize?: (value: TValue, props: Record<PropertyKey, unknown> | undefined) => unknown
+  deserialize?: (snapshot: unknown, props: Record<PropertyKey, unknown> | undefined) => TValue
+  idPrefix?: string
+}
+
 interface RefHandle {
   current?: unknown
 }
@@ -89,6 +102,14 @@ const state: RuntimeState = {
   nextNodeId: 0,
   nextHandlerId: 0,
   debug: false,
+}
+
+const ASYNC_COMPONENT_DESCRIPTOR: TemplateDescriptor = {
+  id: '__arrow_sandbox_async_component__',
+  root: {
+    kind: 'region',
+    exprIndex: 0,
+  },
 }
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as {
@@ -564,7 +585,10 @@ export function createTemplateInstance(
 
 export async function initSandbox(payload: VmInitPayload) {
   destroyRuntime()
-  state.descriptors = payload.descriptors
+  state.descriptors = {
+    [ASYNC_COMPONENT_DESCRIPTOR.id]: ASYNC_COMPONENT_DESCRIPTOR,
+    ...payload.descriptors,
+  }
   state.debug = !!payload.debug
 
   const entryModule = await import(payload.entryPath)
@@ -597,17 +621,79 @@ export async function dispatchMessage(message: HostToVmMessage) {
   }
 }
 
-export function html() {
+export function html(
+  _strings?: TemplateStringsArray | string[],
+  ..._expSlots: unknown[]
+) {
   throw new Error(
     'Sandbox html tags must be precompiled before execution.'
   )
 }
 
-export function component(factory: ComponentFactory, options?: unknown) {
+function createAsyncComponent(
+  loader: ComponentFactory,
+  options: AsyncSandboxComponentOptions = {}
+) : SandboxComponent {
+  return component((props?: ComponentProps) => {
+    const state = reactive({
+      status: 'idle' as AsyncStatus,
+      value: null as unknown,
+      error: null as unknown,
+    })
+    let inFlight: Promise<void> | null = null
+
+    const start = () => {
+      if (inFlight) return inFlight
+
+      state.status = 'pending'
+      const task = (async () => {
+        try {
+          const value = await loader(props)
+          state.value = value
+          state.status = 'resolved'
+        } catch (error) {
+          state.error = error
+          state.status = 'rejected'
+        } finally {
+          inFlight = null
+        }
+      })()
+
+      inFlight = task
+      return task
+    }
+
+    if (state.status === 'idle') {
+      void start()
+    }
+
+    return createTemplateInstance(ASYNC_COMPONENT_DESCRIPTOR.id, [
+      () => {
+        if (state.status === 'rejected') {
+          if (options.onError) {
+            return options.onError(state.error, props)
+          }
+          throw state.error
+        }
+
+        if (state.status === 'resolved') {
+          return options.render
+            ? options.render(state.value, props)
+            : state.value
+        }
+
+        return options.fallback ?? ''
+      },
+    ])
+  })
+}
+
+export function component(
+  factory: ComponentFactory,
+  options?: AsyncSandboxComponentOptions
+) : SandboxComponent {
   if (options || factory instanceof AsyncFunction) {
-    throw new Error(
-      'Async sandbox components are not supported yet.'
-    )
+    return createAsyncComponent(factory, options)
   }
 
   return ((input?: ComponentProps) =>
@@ -617,7 +703,7 @@ export function component(factory: ComponentFactory, options?: unknown) {
       k: undefined,
       p: input,
       key: setComponentKey,
-    })) as unknown
+    })) as SandboxComponent
 }
 
 export function pick<T extends object, K extends keyof T>(

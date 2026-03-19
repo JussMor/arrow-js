@@ -3,6 +3,7 @@ import type {
   SandboxInstance,
   SandboxOptions,
   SerializedNode,
+  VmPatch,
   VmToHostMessage,
 } from '../shared/protocol'
 import { compileSandboxGraph } from '../compiler'
@@ -13,6 +14,7 @@ import { formatError, toDisplayError } from './errors'
 interface BootResult {
   runner: VmRunner
   initialTree: SerializedNode
+  initialPatches: VmPatch[]
 }
 
 class SandboxController implements SandboxInstance {
@@ -44,6 +46,7 @@ class SandboxController implements SandboxInstance {
     this.runner?.destroy()
     this.runner = booted.runner
     this.renderer.render(booted.initialTree)
+    this.renderer.applyPatches(booted.initialPatches)
   }
 
   async update(code: string, options: Partial<SandboxOptions> = {}) {
@@ -62,6 +65,7 @@ class SandboxController implements SandboxInstance {
     this.runner?.destroy()
     this.runner = booted.runner
     this.renderer.render(booted.initialTree)
+    this.renderer.applyPatches(booted.initialPatches)
   }
 
   destroy() {
@@ -77,6 +81,7 @@ class SandboxController implements SandboxInstance {
     const compiled = compileSandboxGraph(code, options)
     let initialTree: SerializedNode | null = null
     let activated = false
+    const initialPatches: VmPatch[] = []
 
     const runner = await createVmRunner({
       compiled,
@@ -91,7 +96,10 @@ class SandboxController implements SandboxInstance {
             this.renderer.render(message.tree)
             return
           case 'patch':
-            if (!activated) return
+            if (!activated) {
+              initialPatches.push(...message.patches)
+              return
+            }
             this.renderer.applyPatches(message.patches)
             return
           case 'error':
@@ -129,6 +137,7 @@ class SandboxController implements SandboxInstance {
     return {
       runner,
       initialTree,
+      initialPatches,
     }
   }
 

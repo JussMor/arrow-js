@@ -5,6 +5,33 @@ function waitForSandbox() {
   return new Promise((resolve) => setTimeout(resolve, 25))
 }
 
+async function flushSandboxJobs() {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+function createMockFetchResponse(
+  body: string,
+  options: {
+    headers?: Record<string, string>
+    ok?: boolean
+    redirected?: boolean
+    status?: number
+    statusText?: string
+    url?: string
+  } = {}
+) {
+  return {
+    ok: options.ok ?? true,
+    status: options.status ?? 200,
+    statusText: options.statusText ?? 'OK',
+    url: options.url ?? 'https://api.example.test/data',
+    redirected: options.redirected ?? false,
+    headers: new Headers(options.headers),
+    arrayBuffer: async () => new TextEncoder().encode(body).buffer,
+  } as Response
+}
+
 afterEach(() => {
   delete (globalThis as Record<string, unknown>).__sandboxTouched
   vi.useRealTimers()
@@ -167,6 +194,152 @@ describe('@arrow-js/sandbox', () => {
     instance.destroy()
   })
 
+  it('supports sandboxed fetch JSON responses with safe host defaults', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        createMockFetchResponse(JSON.stringify({
+          current: {
+            label: 'Test City',
+            temperature: 72,
+          },
+        }), {
+          headers: {
+            'content-type': 'application/json',
+          },
+          url: 'https://api.example.test/weather',
+        })
+      )
+
+    const root = document.createElement('div')
+
+    const instance = await sandbox(
+      `
+        const response = await fetch('https://api.example.test/weather', {
+          headers: {
+            Accept: 'application/json',
+          },
+        })
+        const data = await response.json()
+
+        export default html\`<div id="weather">\${data.current.label}: \${data.current.temperature}</div>\`
+      `,
+      root
+    )
+
+    expect(root.querySelector('#weather')?.textContent).toBe('Test City: 72')
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.example.test/weather',
+      expect.objectContaining({
+        credentials: 'omit',
+        headers: {
+          accept: 'application/json',
+        },
+        method: 'GET',
+        mode: 'cors',
+        redirect: 'follow',
+        referrerPolicy: 'no-referrer',
+      })
+    )
+
+    instance.destroy()
+  })
+
+  it('supports sandboxed fetch text responses and response header helpers', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createMockFetchResponse('storm watch', {
+        headers: {
+          'content-type': 'text/plain',
+        },
+        url: 'https://api.example.test/text',
+      })
+    )
+
+    const root = document.createElement('div')
+
+    const instance = await sandbox(
+      `
+        const response = await fetch('https://api.example.test/text')
+        const contentType = response.headers.get('content-type')
+        const body = await response.text()
+
+        export default html\`<p id="payload">\${contentType}|\${body}</p>\`
+      `,
+      root
+    )
+
+    expect(root.querySelector('#payload')?.textContent).toBe('text/plain|storm watch')
+    instance.destroy()
+  })
+
+  it('rejects sandbox fetch requests that use relative URLs', async () => {
+    const root = document.createElement('div')
+
+    await expect(
+      sandbox(
+        `
+          await fetch('/weather')
+          export default html\`<div>unreachable</div>\`
+        `,
+        root
+      )
+    ).rejects.toThrow('requires an absolute URL')
+  })
+
+  it('rejects sandbox fetch requests that try to include host credentials', async () => {
+    const root = document.createElement('div')
+
+    await expect(
+      sandbox(
+        `
+          await fetch('https://api.example.test/private', {
+            credentials: 'include',
+          })
+          export default html\`<div>unreachable</div>\`
+        `,
+        root
+      )
+    ).rejects.toThrow('credentials: "omit"')
+  })
+
+  it('aborts pending sandbox fetch requests on destroy', async () => {
+    let capturedSignal: AbortSignal | undefined
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          capturedSignal = init?.signal as AbortSignal | undefined
+          capturedSignal?.addEventListener(
+            'abort',
+            () => {
+              reject(new DOMException('Aborted', 'AbortError'))
+            },
+            { once: true }
+          )
+        }) as Promise<Response>
+    )
+
+    const root = document.createElement('div')
+
+    const instance = await sandbox(
+      `
+        void fetch('https://api.example.test/slow')
+        export default html\`<div id="pending">pending</div>\`
+      `,
+      root,
+      {
+        onError() {},
+      }
+    )
+
+    expect(root.querySelector('#pending')?.textContent).toBe('pending')
+    instance.destroy()
+    await flushSandboxJobs()
+
+    expect(capturedSignal?.aborted).toBe(true)
+  })
+
   it('supports sync sandbox components with reactive props and local state', async () => {
     const root = document.createElement('div')
 
@@ -210,6 +383,70 @@ describe('@arrow-js/sandbox', () => {
     await waitForSandbox()
     expect(child.textContent?.trim()).toBe('2|1')
 
+    instance.destroy()
+  })
+
+  it('supports async sandbox components with fallback and eventual resolution', async () => {
+    vi.useFakeTimers()
+
+    const root = document.createElement('div')
+
+    const instance = await sandbox(
+      `
+        const AsyncLabel = component(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+          return 'ready'
+        }, {
+          fallback: html\`<span class="loading">loading</span>\`
+        })
+
+        export default html\`<div>\${AsyncLabel()}</div>\`
+      `,
+      root
+    )
+
+    expect(root.querySelector('.loading')?.textContent).toBe('loading')
+
+    await vi.advanceTimersByTimeAsync(10)
+    await flushSandboxJobs()
+
+    expect(root.textContent?.trim()).toBe('ready')
+    instance.destroy()
+  })
+
+  it('keeps async component computations live when they depend on reactive props', async () => {
+    const root = document.createElement('div')
+
+    const instance = await sandbox(
+      `
+        const state = reactive({
+          count: 2,
+          multiplier: 3,
+        })
+
+        const AsyncCounter = component(async (props) => {
+          const resolvedMultiplier = await Promise.resolve(props.multiplier)
+          return html\`<strong id="async-derived">\${() => props.count * resolvedMultiplier}</strong>\`
+        })
+
+        export default html\`
+          <div>
+            <button id="inc" @click="\${() => state.count++}">inc</button>
+            \${AsyncCounter(state)}
+          </div>
+        \`
+      `,
+      root
+    )
+
+    await flushSandboxJobs()
+    expect(root.querySelector('#async-derived')?.textContent).toBe('6')
+
+    const button = root.querySelector('#inc') as HTMLButtonElement
+    button.click()
+    await waitForSandbox()
+
+    expect(root.querySelector('#async-derived')?.textContent).toBe('9')
     instance.destroy()
   })
 
