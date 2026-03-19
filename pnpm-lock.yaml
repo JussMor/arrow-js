@@ -141,6 +141,8 @@ importers:
         specifier: workspace:*
         version: link:../framework
 
+  packages/skill: {}
+
   packages/ssr:
     dependencies:
       '@arrow-js/framework':

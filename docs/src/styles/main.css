@@ -1150,3 +1150,32 @@ article :where(p, li, td, blockquote) a:not(.playground-cta):is(:hover, :focus-v
 [data-theme="dark"] .site-footer {
   color: #d4d4d8;
 }
+
+/* ---------------------------------------------------------------------------
+   Hero chat mock
+   --------------------------------------------------------------------------- */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: #a1a1aa;
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+[data-theme="dark"] .typing-dot {
+  background: #71717a;
+}
+
+@keyframes chat-msg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chat-msg-enter {
+  animation: chat-msg-in 0.25s ease-out both;
+}
