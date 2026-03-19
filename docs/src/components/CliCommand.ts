@@ -104,7 +104,7 @@ export const CliCommand = component(() => {
     >
       <span class="cli-prompt">$</span>
       <code class="cli-text">
-        <span class="cli-kw">pnpm</span> create arrow-js@latest arrow-app
+        <span class="cli-kw">pnpm</span> <span class="cli-cmd">create</span> <span class="cli-pkg">arrow-js@latest</span> <span class="cli-arg">arrow-app</span>
       </code>
       <span
         class="${() => state.copied ? 'cli-copy cli-copy--done' : 'cli-copy'}"
