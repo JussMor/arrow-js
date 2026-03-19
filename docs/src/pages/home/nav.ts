@@ -20,6 +20,7 @@ export const homeNavGroups: NavGroup[] = [
       { id: 'reactive-data', label: 'Reactive Data' },
       { id: 'watching-data', label: 'Watching Data' },
       { id: 'templates', label: 'Templates' },
+      { id: 'sandbox', label: 'Sandbox' },
       { id: 'routing', label: 'Routing' },
     ],
   },

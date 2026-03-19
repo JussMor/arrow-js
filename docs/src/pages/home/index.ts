@@ -14,8 +14,10 @@ import {
   WatchingData,
   HighlightedWatchingData,
   Templates,
+  SandboxGuide,
   Routing,
   HighlightedTemplates,
+  HighlightedSandboxGuide,
   Examples,
   HighlightedExamples,
 } from '../docs/content'
@@ -29,6 +31,7 @@ export function HomePage(
   const ReactiveDataSection = highlightCode ? HighlightedReactiveData : ReactiveData
   const WatchingDataSection = highlightCode ? HighlightedWatchingData : WatchingData
   const TemplatesSection = highlightCode ? HighlightedTemplates : Templates
+  const SandboxSection = highlightCode ? HighlightedSandboxGuide : SandboxGuide
   const ExamplesSection = highlightCode ? HighlightedExamples : Examples
 
   return html`
@@ -47,7 +50,7 @@ export function HomePage(
             ${Community()}
             ${ComponentsSection()} ${ReactiveDataSection()}
             ${WatchingDataSection()} ${TemplatesSection()}
-            ${Routing()} ${ExamplesSection()}
+            ${SandboxSection()} ${Routing()} ${ExamplesSection()}
           </article>
         </div>
       </div>
