@@ -169,6 +169,8 @@ async function initHighlighter() {
       'ts',
       'html',
       'shell',
+      'json',
+      'markdown',
       ARROW_HTML_LANGUAGE,
       ARROW_HTML_GRAMMAR,
     ],

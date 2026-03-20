@@ -46,7 +46,13 @@ const ARROW_TEMPLATE_PUNCTUATION_SCOPES = [
   'punctuation.definition.template-expression',
   'punctuation.section.embedded',
 ]
-type SupportedLanguage = 'js' | 'ts' | 'html' | 'shell'
+type SupportedLanguage =
+  | 'js'
+  | 'ts'
+  | 'html'
+  | 'shell'
+  | 'json'
+  | 'markdown'
 
 function getRequestUrl(input: RequestInfo | URL) {
   if (typeof input === 'string') return input
@@ -135,6 +141,11 @@ function normalizeLanguage(language: string): SupportedLanguage {
       return 'js'
     case 'typescript':
       return 'ts'
+    case 'json':
+      return 'json'
+    case 'md':
+    case 'markdown':
+      return 'markdown'
     case 'shell':
     case 'bash':
       return 'shell'
@@ -177,6 +188,8 @@ async function initHighlighter() {
       'ts',
       'html',
       'shell',
+      'json',
+      'markdown',
       ARROW_HTML_LANGUAGE,
       ARROW_HTML_GRAMMAR,
     ],

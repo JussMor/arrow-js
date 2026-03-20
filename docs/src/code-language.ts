@@ -1,4 +1,10 @@
-export type SupportedLanguage = 'js' | 'ts' | 'html' | 'shell'
+export type SupportedLanguage =
+  | 'js'
+  | 'ts'
+  | 'html'
+  | 'shell'
+  | 'json'
+  | 'markdown'
 
 export function normalizeLanguage(language: string | undefined): SupportedLanguage {
   const lang = (language ?? 'ts').replace('language-', '')
@@ -8,6 +14,11 @@ export function normalizeLanguage(language: string | undefined): SupportedLangua
       return 'js'
     case 'typescript':
       return 'ts'
+    case 'json':
+      return 'json'
+    case 'md':
+    case 'markdown':
+      return 'markdown'
     case 'shell':
     case 'bash':
       return 'shell'
