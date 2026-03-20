@@ -23,13 +23,18 @@ const { renderLlms, renderMarkdown, renderPage, renderPlayground } = await impor
   pathToFileURL(serverEntryPath).href
 )
 
+const prerenderBaseUrl = resolvePrerenderBaseUrl()
+
 await fs.rm(staticDistDir, { force: true, recursive: true })
 await fs.cp(clientDistDir, staticDistDir, { recursive: true })
 
 const template = await fs.readFile(path.resolve(clientDistDir, 'index.html'), 'utf8')
 
 for (const [url, outputPath] of htmlRoutes) {
-  const page = await renderPage(url)
+  const page = await renderPage(
+    url,
+    prerenderBaseUrl ? { baseUrl: prerenderBaseUrl } : undefined,
+  )
   const html = template
     .replace('<!--app-head-->', page.head ?? '')
     .replace('<!--app-html-->', page.html)
@@ -46,4 +51,26 @@ async function writeOutput(relativePath, content) {
   const outputPath = path.resolve(staticDistDir, relativePath)
   await fs.mkdir(path.dirname(outputPath), { recursive: true })
   await fs.writeFile(outputPath, content)
+}
+
+function resolvePrerenderBaseUrl() {
+  const candidates = [
+    process.env.DOCS_SITE_URL,
+    process.env.SITE_URL,
+    process.env.CF_PAGES_URL,
+    process.env.DEPLOY_URL,
+    process.env.URL,
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    try {
+      return new URL(candidate).origin
+    } catch {
+      try {
+        return new URL(`https://${candidate}`).origin
+      } catch {}
+    }
+  }
+
+  return undefined
 }
