@@ -1,0 +1,184 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "text.html.arrowjs",
+  "patterns": [
+    {
+      "include": "text.html.basic#comment"
+    },
+    {
+      "include": "text.html.basic#doctype"
+    },
+    {
+      "include": "text.html.basic#cdata"
+    },
+    {
+      "include": "#closing-tag"
+    },
+    {
+      "include": "#opening-tag"
+    },
+    {
+      "include": "text.html.basic#entities"
+    }
+  ],
+  "repository": {
+    "attribute": {
+      "patterns": [
+        {
+          "begin": "([@.?]?[^\\s\"'<>/=]+)",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.other.attribute-name.html"
+            }
+          },
+          "end": "(?=\\s*+[^=\\s])",
+          "name": "meta.attribute.$1.html",
+          "patterns": [
+            {
+              "include": "#attribute-interior"
+            }
+          ]
+        }
+      ]
+    },
+    "attribute-interior": {
+      "patterns": [
+        {
+          "begin": "=",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.separator.key-value.html"
+            }
+          },
+          "end": "(?<=[^\\s=])(?!\\s*=)|(?=/?>)",
+          "patterns": [
+            {
+              "include": "#template-substitution-element"
+            },
+            {
+              "match": "([^\\s\"'=<>`/]|/(?!>))+",
+              "name": "string.unquoted.html"
+            },
+            {
+              "begin": "\"",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.begin.html"
+                }
+              },
+              "end": "\"",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.end.html"
+                }
+              },
+              "name": "string.quoted.double.html",
+              "patterns": [
+                {
+                  "include": "#template-substitution-element"
+                },
+                {
+                  "include": "text.html.basic#entities"
+                }
+              ]
+            },
+            {
+              "begin": "'",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.begin.html"
+                }
+              },
+              "end": "'",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.end.html"
+                }
+              },
+              "name": "string.quoted.single.html",
+              "patterns": [
+                {
+                  "include": "#template-substitution-element"
+                },
+                {
+                  "include": "text.html.basic#entities"
+                }
+              ]
+            },
+            {
+              "match": "=",
+              "name": "invalid.illegal.unexpected-equals-sign.html"
+            }
+          ]
+        }
+      ]
+    },
+    "template-substitution-element": {
+      "name": "meta.template.expression.ts",
+      "begin": "\\$\\{",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.template-expression.begin.ts"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.template-expression.end.ts"
+        }
+      },
+      "contentName": "meta.embedded.line.ts",
+      "patterns": [
+        {
+          "include": "source.ts#expression"
+        }
+      ]
+    },
+    "closing-tag": {
+      "begin": "(</)([A-Za-z][\\w:.-]*)(?=\\s|>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.html"
+        },
+        "2": {
+          "name": "entity.name.tag.html"
+        }
+      },
+      "end": ">",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.end.html"
+        }
+      },
+      "name": "meta.tag.any.end.html",
+      "patterns": [
+        {
+          "include": "#attribute"
+        }
+      ]
+    },
+    "opening-tag": {
+      "begin": "(<)([A-Za-z][\\w:.-]*)(?=\\s|/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.html"
+        },
+        "2": {
+          "name": "entity.name.tag.html"
+        }
+      },
+      "end": "/?>",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.end.html"
+        }
+      },
+      "name": "meta.tag.any.start.html",
+      "patterns": [
+        {
+          "include": "#attribute"
+        }
+      ]
+    }
+  }
+}

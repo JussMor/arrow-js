@@ -1,0 +1,12 @@
+name = "arrowjs-playground"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+routes = [
+  { pattern = "arrow-js.com/api/play*", zone_name = "arrow-js.com" },
+]
+
+[[kv_namespaces]]
+binding = "PLAY_KV"
+id = "3be0b7cab52c4e92b1945783e82f7754"
+preview_id = "3be0b7cab52c4e92b1945783e82f7754"

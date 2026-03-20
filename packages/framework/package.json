@@ -1,0 +1,26 @@
+{
+  "name": "@arrow-js/framework",
+  "version": "1.0.0-alpha.9",
+  "description": "Framework runtime for async ArrowJS components, boundaries, and document rendering.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/standardagents/arrow-js",
+    "directory": "packages/framework"
+  },
+  "homepage": "https://github.com/standardagents/arrow-js#readme",
+  "bugs": {
+    "url": "https://github.com/standardagents/arrow-js/issues"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./internal": "./src/internal.ts",
+    "./ssr": "./src/ssr.ts"
+  },
+  "dependencies": {
+    "@arrow-js/core": "workspace:*",
+    "@types/jsdom": "^28.0.0",
+    "jsdom": "^26.1.0"
+  }
+}

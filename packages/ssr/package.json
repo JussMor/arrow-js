@@ -1,0 +1,22 @@
+{
+  "name": "@arrow-js/ssr",
+  "version": "1.0.0-alpha.9",
+  "description": "Server-side rendering helpers for ArrowJS.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/standardagents/arrow-js",
+    "directory": "packages/ssr"
+  },
+  "homepage": "https://github.com/standardagents/arrow-js#readme",
+  "bugs": {
+    "url": "https://github.com/standardagents/arrow-js/issues"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@arrow-js/framework": "workspace:*"
+  }
+}

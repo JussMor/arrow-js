@@ -1,0 +1,49 @@
+import { defineConfig, InputOptions, OutputOptions } from 'rollup'
+import typescript from '@rollup/plugin-typescript'
+import dts from 'rollup-plugin-dts'
+
+const plugins: InputOptions['plugins'] = []
+
+const output: OutputOptions = {
+  file: 'dist/index.mjs',
+}
+
+let input = 'src/index.ts'
+
+if (process.env.BUILD === 'types') {
+  plugins.push(dts())
+  output.file = 'dist/index.d.ts'
+  input = 'dist/index.d.ts'
+} else if (process.env.BUILD === 'iife') {
+  output.sourcemap = true
+  output.name = '$arrow'
+  output.format = 'iife'
+  output.file = 'dist/index.js'
+  plugins.push(
+    typescript({
+      sourceMap: false,
+      exclude: ['rollup.config.ts', 'src/__tests__/**'],
+    })
+  )
+} else {
+  output.sourcemap = true
+  plugins.push(
+    typescript({
+      sourceMap: false,
+      exclude: ['rollup.config.ts', 'src/__tests__/**'],
+    })
+  )
+}
+
+const config = defineConfig({
+  input,
+  output,
+  plugins,
+  treeshake: {
+    moduleSideEffects: false,
+    propertyReadSideEffects: false,
+    tryCatchDeoptimization: false,
+  },
+})
+
+export default config

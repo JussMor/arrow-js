@@ -1,0 +1,23 @@
+{
+  "name": "@arrow-js/hydrate",
+  "version": "1.0.0-alpha.9",
+  "description": "Hydration runtime for adopting ArrowJS SSR output in the browser.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/standardagents/arrow-js",
+    "directory": "packages/hydrate"
+  },
+  "homepage": "https://github.com/standardagents/arrow-js#readme",
+  "bugs": {
+    "url": "https://github.com/standardagents/arrow-js/issues"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@arrow-js/core": "workspace:*",
+    "@arrow-js/framework": "workspace:*"
+  }
+}

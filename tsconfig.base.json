@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@src": ["packages/core/src/index.ts"],
+      "@src/*": ["packages/core/src/*"],
+      "@arrow-js/core": ["packages/core/src/index.ts"],
+      "@arrow-js/core/internal": ["packages/core/src/internal.ts"],
+      "@arrow-js/framework": ["packages/framework/src/index.ts"],
+      "@arrow-js/framework/internal": ["packages/framework/src/internal.ts"],
+      "@arrow-js/framework/ssr": ["packages/framework/src/ssr.ts"],
+      "@arrow-js/ssr": ["packages/ssr/src/index.ts"],
+      "@arrow-js/hydrate": ["packages/hydrate/src/index.ts"],
+      "@arrow-js/highlight": ["packages/highlight/src/index.ts"],
+      "@arrow-js/sandbox": ["packages/sandbox/src/index.ts"],
+      "@arrow-js/compiler": ["packages/compiler/src/index.ts"],
+      "@arrow-js/vite-plugin-arrow": ["packages/vite-plugin-arrow/src/index.js"]
+    }
+  }
+}

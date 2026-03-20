@@ -1,0 +1,19 @@
+{
+  "name": "@arrow-js/compiler",
+  "private": true,
+  "description": "Internal compiler package used by ArrowJS tooling.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/standardagents/arrow-js",
+    "directory": "packages/compiler"
+  },
+  "homepage": "https://github.com/standardagents/arrow-js#readme",
+  "bugs": {
+    "url": "https://github.com/standardagents/arrow-js/issues"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

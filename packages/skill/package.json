@@ -1,0 +1,30 @@
+{
+  "name": "@arrow-js/skill",
+  "version": "1.0.0-alpha.9",
+  "description": "CLI installer for the ArrowJS coding-agent skill.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/standardagents/arrow-js",
+    "directory": "packages/skill"
+  },
+  "homepage": "https://github.com/standardagents/arrow-js#readme",
+  "bugs": {
+    "url": "https://github.com/standardagents/arrow-js/issues"
+  },
+  "bin": {
+    "arrow-js-skill": "./index.js"
+  },
+  "exports": {
+    ".": "./installer.js"
+  },
+  "files": [
+    "index.js",
+    "installer.js",
+    "resources",
+    "README.md",
+    "LICENSE.txt",
+    "arrow-logo.png"
+  ]
+}

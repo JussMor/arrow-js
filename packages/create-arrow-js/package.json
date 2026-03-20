@@ -1,0 +1,31 @@
+{
+  "name": "create-arrow-js",
+  "version": "1.0.0-alpha.10",
+  "description": "Scaffold a Vite 8 ArrowJS app with SSR and hydration.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/standardagents/arrow-js",
+    "directory": "packages/create-arrow-js"
+  },
+  "homepage": "https://github.com/standardagents/arrow-js#readme",
+  "bugs": {
+    "url": "https://github.com/standardagents/arrow-js/issues"
+  },
+  "bin": {
+    "create-arrow-js": "./index.js"
+  },
+  "exports": {
+    ".": "./scaffold.js"
+  },
+  "files": [
+    "index.js",
+    "scaffold.js",
+    "versions.json",
+    "template",
+    "README.md",
+    "LICENSE.txt",
+    "arrow-logo.png"
+  ]
+}

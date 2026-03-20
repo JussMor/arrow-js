@@ -1,0 +1,119 @@
+.timer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 32px;
+  font: 15px/1.5 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  transition: background 600ms ease;
+}
+
+.timer[data-mode='work'] {
+  background: #ba4949;
+  color: #fff;
+}
+
+.timer[data-mode='break'] {
+  background: #38858a;
+  color: #fff;
+}
+
+.timer-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.timer-tab {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 28px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 150ms;
+}
+
+.timer-tab--on {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.timer-face {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+.timer-ring {
+  width: 100%;
+  height: 100%;
+}
+
+.timer-ring__track {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+
+.timer-ring__fill {
+  stroke: rgba(255, 255, 255, 0.9);
+  transition: stroke-dashoffset 300ms ease;
+}
+
+.timer-time {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.timer-digits {
+  font-size: 4.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.timer-btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 16px 52px;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transition: background 150ms;
+}
+
+.timer-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.timer-btn--sec {
+  padding: 16px 28px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.timer-btn--sec:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.timer-sessions {
+  margin: 0;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.5);
+}

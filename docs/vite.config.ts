@@ -1,33 +1,42 @@
+import path from 'node:path'
 import { defineConfig } from 'vite'
-import { dirname, resolve } from 'path'
-import { fileURLToPath } from 'url'
+import { arrow } from '@arrow-js/vite-plugin-arrow'
+import tailwindcss from '@tailwindcss/vite'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const rootDir = __dirname
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      '@src': resolve(__dirname, '../src'),
+  plugins: [arrow(), tailwindcss()],
+  server: {
+    host: '127.0.0.1',
+    port: 4174,
+    fs: {
+      allow: [rootDir, path.resolve(rootDir, '..')],
     },
   },
   build: {
+    outDir: path.resolve(rootDir, 'dist/client'),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        home: resolve(__dirname, 'index.html'),
-        docs: resolve(__dirname, 'docs/index.html'),
-        benchmarks: resolve(__dirname, 'benchmarks/index.html'),
-        benchmarks_creating: resolve(__dirname, 'benchmarks/creating.html'),
-        benchmarks_textNodes: resolve(__dirname, 'benchmarks/textNodes.html'),
-        demos_calculator: resolve(__dirname, 'demos/calculator.html'),
-        demos_carousel: resolve(__dirname, 'demos/carousel.html'),
-        demos_dropdowns: resolve(__dirname, 'demos/dropdowns.html'),
-        demos_fast_text: resolve(__dirname, 'demos/fast-text.html'),
-        demos_tabs: resolve(__dirname, 'demos/tabs.html'),
+        main: path.resolve(rootDir, 'index.html'),
+        play: path.resolve(rootDir, 'play/index.html'),
+        playPreview: path.resolve(rootDir, 'play/preview.html'),
       },
-      output: {
-        dir: resolve(__dirname, '../public'),
+    },
+  },
+  environments: {
+    ssr: {
+      consumer: 'server',
+      build: {
+        outDir: path.resolve(rootDir, 'dist/server'),
+        emptyOutDir: false,
+        rollupOptions: {
+          input: path.resolve(rootDir, 'src/entry-server.ts'),
+          output: {
+            entryFileNames: 'entry-server.js',
+          },
+        },
       },
     },
   },
