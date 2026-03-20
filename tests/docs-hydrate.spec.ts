@@ -5,13 +5,15 @@ import { routeToPage } from '../docs/src/app'
 import { renderPage } from '../docs/src/entry-server'
 
 describe('docs hydration', () => {
-  it('renders canonical, Open Graph, and Twitter metadata for docs routes', async () => {
-    const docs = await renderPage('/docs/?ref=test')
+  it('renders canonical, Open Graph, and Twitter metadata for site routes', async () => {
+    const docs = await renderPage('/?ref=test')
     const api = await renderPage('/api?ref=test')
 
-    expect(docs.head).toContain('<link rel="canonical" href="https://arrow-js.com/docs" />')
-    expect(docs.head).toContain('<meta property="og:url" content="https://arrow-js.com/docs" />')
-    expect(docs.head).toContain('<meta property="og:title" content="Documentation — Arrow" />')
+    expect(docs.head).toContain('<link rel="canonical" href="https://arrow-js.com/" />')
+    expect(docs.head).toContain('<meta property="og:url" content="https://arrow-js.com/" />')
+    expect(docs.head).toContain(
+      '<meta property="og:title" content="ArrowJS — Reactive interfaces in pure JavaScript" />'
+    )
     expect(docs.head).toContain(
       '<meta property="og:image" content="https://arrow-js.com/arrow-js-og-meta.webp" />'
     )
@@ -23,7 +25,7 @@ describe('docs hydration', () => {
       '<meta name="twitter:image" content="https://arrow-js.com/arrow-js-og-meta.webp" />'
     )
     expect(docs.head).toContain(
-      '<meta name="twitter:description" content="Guides for ArrowJS fundamentals including reactive state, templates, components, routing, and sandboxed execution." />'
+      '<meta name="twitter:description" content="A ~5KB runtime with zero dependencies. Observable data, declarative DOM, and SSR built on platform primitives." />'
     )
 
     expect(api.head).toContain('<link rel="canonical" href="https://arrow-js.com/api" />')
@@ -38,7 +40,7 @@ describe('docs hydration', () => {
   })
 
   it('renders the shared header controls in SSR output', async () => {
-    const page = await routeToPage('/docs/')
+    const page = await routeToPage('/')
     const ssr = await renderToString(page.view)
 
     expect(ssr.html).toMatch(/aria-label="GitHub[^"]*"/)
