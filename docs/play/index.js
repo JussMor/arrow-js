@@ -346,6 +346,54 @@ const scheduleHashSync = () => {
   hashTimer = window.setTimeout(writeHash, 420)
 }
 
+const fallbackCopyText = (text) => {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.top = '0'
+  textarea.style.left = '-9999px'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  textarea.setSelectionRange(0, text.length)
+
+  let copied = false
+  try {
+    copied = document.execCommand('copy')
+  } catch {
+    copied = false
+  }
+
+  textarea.remove()
+  return copied
+}
+
+const copyText = async (text) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // Fall back to the synchronous copy path when async clipboard is unavailable.
+  }
+
+  return fallbackCopyText(text)
+}
+
+const isIosLikeBrowser = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+const shouldUseSynchronousShareFlow = () =>
+  !navigator.clipboard?.writeText || isIosLikeBrowser()
+
+const getFallbackShareUrl = () => {
+  writeHash()
+  return window.location.href
+}
+
 const sendThemeToPreview = () => {
   if (!previewFrame?.contentWindow) return
   previewFrame.contentWindow.postMessage(
@@ -557,7 +605,9 @@ const copyMarkdown = async () => {
   try {
     const res = await fetch(url)
     const text = await res.text()
-    await navigator.clipboard.writeText(text)
+    if (!(await copyText(text))) {
+      return
+    }
   } catch {
     return
   }
@@ -589,8 +639,10 @@ const getShareUrl = async () => {
 const sharePlayground = async () => {
   state.sharing = true
   try {
-    const url = await getShareUrl()
-    await navigator.clipboard.writeText(url)
+    const url = shouldUseSynchronousShareFlow() ? getFallbackShareUrl() : await getShareUrl()
+    if (!(await copyText(url))) {
+      return
+    }
     state.copied = true
     state.copyMenuOpen = false
     window.setTimeout(() => { state.copied = false }, 2000)
@@ -600,12 +652,19 @@ const sharePlayground = async () => {
 }
 
 const openGitHubIssue = async () => {
+  const popup = window.open('about:blank', '_blank')
   state.sharing = true
   try {
-    const playUrl = await getShareUrl()
+    const playUrl = shouldUseSynchronousShareFlow() ? getFallbackShareUrl() : await getShareUrl()
     const issueUrl = `https://github.com/standardagents/arrow-js/issues/new?labels=playground&body=${encodeURIComponent(`Describe the issue…\n\nPlayground: ${playUrl}`)}`
-    window.open(issueUrl, '_blank')
+    if (popup) {
+      popup.location.replace(issueUrl)
+    } else {
+      window.open(issueUrl, '_blank')
+    }
     closeCopyMenu()
+  } catch {
+    popup?.close()
   } finally {
     state.sharing = false
   }

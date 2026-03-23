@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import {
   playgroundExampleHref,
   playgroundExampleMeta,
@@ -6,6 +6,54 @@ import {
 } from '../../docs/play/example-meta.js'
 
 const PLAYGROUND_RENDER_TIMEOUT = 15_000
+
+async function emulateIosShareEnvironment(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      get: () =>
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    })
+    Object.defineProperty(navigator, 'platform', {
+      configurable: true,
+      get: () => 'iPhone',
+    })
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      get: () => 5,
+    })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      get: () => undefined,
+    })
+
+    ;(window as any).__copiedText = ''
+    ;(window as any).__openCalls = []
+    ;(window as any).__popupUrl = ''
+    ;(window as any).__popupClosed = false
+
+    document.execCommand = (command) => {
+      const textarea = document.querySelector('textarea[readonly]')
+      ;(window as any).__copiedText =
+        textarea instanceof HTMLTextAreaElement ? textarea.value : ''
+      return command === 'copy'
+    }
+
+    window.open = ((...args) => {
+      ;(window as any).__openCalls.push(args.map((value) => String(value ?? '')))
+      return {
+        close() {
+          ;(window as any).__popupClosed = true
+        },
+        location: {
+          replace(url: string) {
+            ;(window as any).__popupUrl = String(url)
+          },
+        },
+      }
+    }) as typeof window.open
+  })
+}
 
 test('playground loads the starter multi-file example', async ({ page }) => {
   const messages: string[] = []
@@ -133,4 +181,47 @@ test('playground makes @arrow-js/sandbox available by import', async ({ page }) 
   await expect(preview.locator('#sandbox-counter')).toHaveText('Count 1', {
     timeout: PLAYGROUND_RENDER_TIMEOUT,
   })
+})
+
+test('playground copy url falls back to synchronous copy on iOS browsers', async ({ page }) => {
+  await emulateIosShareEnvironment(page)
+  await page.goto(playgroundExampleHref(starterExampleId))
+
+  const copyButton = page.getByRole('button', { name: 'Copy URL' }).first()
+  await copyButton.click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        copiedText: (window as any).__copiedText,
+        href: window.location.href,
+      }))
+    )
+    .toEqual({
+      copiedText: page.url(),
+      href: page.url(),
+    })
+})
+
+test('playground github issue opens a popup before navigating on iOS browsers', async ({
+  page,
+}) => {
+  await emulateIosShareEnvironment(page)
+  await page.goto(playgroundExampleHref(starterExampleId))
+
+  await page.locator('.play-copy-toggle').click()
+  await page.getByRole('button', { name: /Open GitHub Issue/ }).click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        openCall: (window as any).__openCalls[0] ?? null,
+        popupUrl: (window as any).__popupUrl,
+      }))
+    )
+    .toEqual({
+      openCall: ['about:blank', '_blank'],
+      popupUrl:
+        `https://github.com/standardagents/arrow-js/issues/new?labels=playground&body=${encodeURIComponent(`Describe the issue…\n\nPlayground: ${page.url()}`)}`,
+    })
 })
