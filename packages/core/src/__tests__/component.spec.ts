@@ -460,4 +460,22 @@ describe('component', () => {
 
     expect(ready).toHaveBeenCalledWith('ok')
   })
+
+  it('enumerates proxied component props from the source object', () => {
+    const root = document.createElement('div')
+    let keys: string[] = []
+    let hasCount = false
+
+    const Child = component((props: Props<{ count: number; label: string }>) => {
+      keys = Object.keys(props as Record<string, unknown>)
+      hasCount = 'count' in props
+      return html`<div>${() => props.label}</div>`
+    })
+
+    html`<main>${Child({ count: 2, label: 'ready' })}</main>`(root)
+
+    expect(keys).toEqual(['count', 'label'])
+    expect(hasCount).toBe(true)
+    expect(root.innerHTML).toBe('<main><div>ready</div></main>')
+  })
 })

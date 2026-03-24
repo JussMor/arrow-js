@@ -109,6 +109,26 @@ const propsProxyHandler: ProxyHandler<SourceBox> = {
     if (!source) return
     return (source as Record<PropertyKey, unknown>)[key as PropertyKey]
   },
+  has(target, key) {
+    const source = target[0]
+    return !!source && key in source
+  },
+  ownKeys(target) {
+    const source = target[0]
+    return source ? Reflect.ownKeys(source) : []
+  },
+  getOwnPropertyDescriptor(target, key) {
+    const source = target[0]
+    if (!source) return undefined
+    return (
+      Reflect.getOwnPropertyDescriptor(source, key) ?? {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: (source as Record<PropertyKey, unknown>)[key as PropertyKey],
+      }
+    )
+  },
   set(target, key, value) {
     const source = target[0]
     if (!source) return false

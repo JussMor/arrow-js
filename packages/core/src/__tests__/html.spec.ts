@@ -223,6 +223,23 @@ describe('html', () => {
     )
   })
 
+  it('supports generated textarea bindings from string arrays', async () => {
+    const data = reactive({ value: 'Arrow textarea' })
+    const root = document.createElement('div')
+    const strings = ['<textarea .value="', '">', '</textarea>']
+
+    html(strings, () => data.value, () => data.value)(root)
+    const textarea = root.querySelector('textarea') as HTMLTextAreaElement
+
+    expect(textarea).toBeTruthy()
+    expect(textarea.value).toBe('Arrow textarea')
+
+    data.value = 'Updated textarea'
+    await nextTick()
+
+    expect(textarea.value).toBe('Updated textarea')
+  })
+
   it('automatically updates expressions with arrow fn', async () => {
     const data = reactive({ name: 'World' })
     const parent = document.createElement('div')

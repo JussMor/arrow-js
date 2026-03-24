@@ -524,6 +524,11 @@ const UserName = component(async ({ id }: { id: string }) =&gt; {
               <strong>Never destructure props</strong> at the top of the factory —
               read them lazily inside reactive expressions.
             </li>
+            <li>
+              <code>Props&lt;T&gt;</code> is a live proxy over the source object, so
+              checks like <code>'count' in props</code> and
+              <code>Object.keys(props)</code> reflect the current source keys.
+            </li>
             <li>SSR waits for all async components to resolve before returning HTML.</li>
             <li>
               JSON-safe async results are auto-serialized into the hydration payload.

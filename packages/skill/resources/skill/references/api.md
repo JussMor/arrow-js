@@ -21,6 +21,7 @@ Use this reference when you need the main runtime semantics quickly.
 - Wraps a plain function and gives it stable instance semantics per render slot.
 - Pass reactive objects as props.
 - Read props lazily with callable expressions.
+- Component props are live proxies, so `'foo' in props` and `Object.keys(props)` reflect the current source object.
 
 ## `watch()`
 
