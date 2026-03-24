@@ -25,6 +25,7 @@
     "test:e2e": "playwright test",
     "test:e2e:sandbox": "playwright test -c playwright.sandbox.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "pnpm typecheck && pnpm test && pnpm build",
     "install:browsers": "playwright install",
     "benchmark:setup": "node bench/js-framework-benchmark/setup.mjs",
     "benchmark:sync": "node bench/js-framework-benchmark/sync.mjs",

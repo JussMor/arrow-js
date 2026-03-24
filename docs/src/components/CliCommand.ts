@@ -1,4 +1,26 @@
-import { component, html, reactive } from '@arrow-js/core'
+import { component, html, onCleanup, reactive, type Props } from '@arrow-js/core'
+
+const defaultCommand = 'pnpm create arrow-js@latest arrow-app'
+const defaultAriaLabel = 'Copy Arrow app scaffold command'
+
+type CliCommandProps = Record<PropertyKey, unknown> & {
+  ariaLabel: string
+  command: string
+}
+
+type CliCommandOptions = {
+  ariaLabel?: string | null
+  command?: string | null
+}
+
+export function resolveCliCommandProps(
+  props: CliCommandOptions = {}
+): CliCommandProps {
+  return {
+    command: props.command ?? defaultCommand,
+    ariaLabel: props.ariaLabel ?? defaultAriaLabel,
+  }
+}
 
 function fallbackCopyText(text: string) {
   const textarea = document.createElement('textarea')
@@ -63,13 +85,14 @@ function getBurstOrigin(event: MouseEvent) {
   }
 }
 
-export const CliCommand = component(() => {
+export const CliCommand = component<CliCommandProps>((props: Props<CliCommandProps>) => {
   const state = reactive({ copied: false })
-  let timer: ReturnType<typeof setTimeout>
-  const command = 'pnpm create arrow-js@latest arrow-app'
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  onCleanup(() => clearTimeout(timer))
 
   async function copy(event: MouseEvent) {
-    const copied = await copyText(command)
+    const copied = await copyText(props.command)
 
     if (!copied) {
       return
@@ -100,12 +123,10 @@ export const CliCommand = component(() => {
       data-rain-collider
       @click="${copy}"
       class="cli-command"
-      aria-label="npx @arrow-js/skill. Copy install command"
+      aria-label="${() => props.ariaLabel}"
     >
       <span class="cli-prompt">$</span>
-      <code class="cli-text">
-        <span class="cli-kw">pnpm</span> <span class="cli-cmd">create</span> <span class="cli-pkg">arrow-js@latest</span> <span class="cli-arg">arrow-app</span>
-      </code>
+      <code class="cli-text">${() => renderCommand(props.command)}</code>
       <span
         class="${() => state.copied ? 'cli-copy cli-copy--done' : 'cli-copy'}"
       >${() =>
@@ -117,6 +138,30 @@ export const CliCommand = component(() => {
   `
 })
 
-export function CliCommandIsland() {
-  return html`<div data-island="cli-command">${CliCommand()}</div>`
+function renderCommand(command: string) {
+  return command.split(/\s+/).flatMap((token, index) => {
+    const className =
+      index === 0
+        ? 'cli-kw'
+        : token.startsWith('@') || token.includes('arrow-js')
+          ? 'cli-pkg'
+          : index === 1
+            ? 'cli-cmd'
+            : 'cli-arg'
+
+    return [
+      index > 0 ? ' ' : '',
+      html`<span class="${className}">${token}</span>`,
+    ]
+  })
+}
+
+export function CliCommandIsland(props?: CliCommandOptions) {
+  const resolvedProps = resolveCliCommandProps(props)
+
+  return html`<div
+    data-island="cli-command"
+    data-command="${resolvedProps.command}"
+    data-aria-label="${resolvedProps.ariaLabel}"
+  >${CliCommand(resolvedProps)}</div>`
 }

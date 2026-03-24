@@ -69,6 +69,19 @@ export function Quickstart(options: DocsContentOptions = {}) {
         ${CliCommandIsland()}
 
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-6">
+          Coding agent skill
+        </h3>
+        <p>
+          Install the Arrow coding agent skill wrapper if you want the same
+          project-specific guidance in tools like Codex and Claude Code.
+        </p>
+
+        ${CliCommandIsland({
+          command: 'npx @arrow-js/skill@latest',
+          ariaLabel: 'Copy Arrow coding agent skill install command',
+        })}
+
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white pt-6">
           Other ways to install
         </h3>
         <p>
@@ -311,7 +324,7 @@ export function ReactiveData() {
       <div class="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
         <p>
           <code>reactive()</code> turns plain objects, arrays, or expressions
-          into live state that Arrow can track and update from.
+          into live state that Arrow (or anyone else) can track and update from.
         </p>
         <p>
           <code>reactive(value)</code> or <code>reactive(() =&gt; value)</code>

@@ -11,6 +11,11 @@ fi
 
 cd "$DMUX_WORKTREE_PATH"
 
+if command -v git >/dev/null 2>&1; then
+  echo "[Hook] Configuring git hooks path"
+  git config core.hooksPath .githooks
+fi
+
 if [ ! -f "pnpm-lock.yaml" ]; then
   echo "[Hook] pnpm-lock.yaml not found, skipping install/build"
   exit 0

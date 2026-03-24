@@ -22,6 +22,22 @@ interface AssetBinding {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
 }
 
+interface HtmlRewriterElement {
+  setAttribute(name: string, value: string): void
+}
+
+interface HtmlRewriter {
+  on(
+    selector: string,
+    handlers: { element(element: HtmlRewriterElement): void }
+  ): HtmlRewriter
+  transform(response: Response): Response
+}
+
+declare const HTMLRewriter: {
+  new (): HtmlRewriter
+}
+
 const HASH_LENGTH = 32
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -111,6 +127,33 @@ function isDocumentRequest(request: Request) {
   return !accept || accept.includes('text/html') || accept.includes('*/*')
 }
 
+function normalizeMetadataPath(pathname: string) {
+  return pathname.replace(/\/+$/, '') || '/'
+}
+
+function rewriteMetadata(request: Request, response: Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('text/html')) {
+    return response
+  }
+
+  const url = new URL(request.url)
+  const canonicalUrl = `${url.origin}${normalizeMetadataPath(url.pathname)}`
+
+  return new HTMLRewriter()
+    .on('link[rel="canonical"]', {
+      element(element) {
+        element.setAttribute('href', canonicalUrl)
+      },
+    })
+    .on('meta[property="og:url"]', {
+      element(element) {
+        element.setAttribute('content', canonicalUrl)
+      },
+    })
+    .transform(response)
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -134,7 +177,13 @@ export default {
     }
 
     if (env.ASSETS) {
-      return env.ASSETS.fetch(request)
+      const response = await env.ASSETS.fetch(request)
+
+      if (isDocumentRequest(request)) {
+        return rewriteMetadata(request, response)
+      }
+
+      return response
     }
 
     return new Response('Not found', { status: 404 })

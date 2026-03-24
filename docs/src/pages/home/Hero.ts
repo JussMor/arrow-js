@@ -52,8 +52,9 @@ export function Hero() {
             >
             while rendering full inline DOM directly in your app — no iframes,
             no pre-defined UI components.<br /><br />
-            Ship safe, flexible, on-demand UIs for your users without having to
-            plan components in advance.
+            Use it to build fast, maintainable applications — or to ship safe,
+            flexible, on-demand UIs for your users without having to plan
+            components in advance.
           </p>
 
           <div class="mt-8">${CliCommandIsland()}</div>

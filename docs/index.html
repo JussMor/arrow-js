@@ -3,19 +3,6 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      rel="icon"
-      type="image/png"
-      href="/favicon-light.png"
-      media="(prefers-color-scheme: light)"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      href="/favicon-dark.png"
-      media="(prefers-color-scheme: dark)"
-    />
-    <link rel="icon" type="image/png" href="/favicon-light.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -24,14 +11,40 @@
     />
     <script>
       ;(function () {
+        var colorScheme = window.matchMedia('(prefers-color-scheme: dark)')
+        var favicon =
+          document.querySelector('link[data-managed-favicon]') ||
+          document.createElement('link')
+
+        favicon.setAttribute('data-managed-favicon', 'true')
+        favicon.rel = 'icon'
+        favicon.type = 'image/png'
+
+        if (!favicon.parentNode) {
+          document.head.appendChild(favicon)
+        }
+
+        function syncFavicon() {
+          var variant = colorScheme.matches ? 'dark' : 'light'
+          favicon.href = '/favicon-' + variant + '.png?v=' + variant
+        }
+
         try {
           var stored = localStorage.getItem('arrow-theme')
           if (stored === 'light' || stored === 'dark') {
             document.documentElement.setAttribute('data-theme', stored)
-          } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+          } else if (!colorScheme.matches) {
             document.documentElement.setAttribute('data-theme', 'light')
           }
         } catch (e) {}
+
+        syncFavicon()
+
+        if (typeof colorScheme.addEventListener === 'function') {
+          colorScheme.addEventListener('change', syncFavicon)
+        } else if (typeof colorScheme.addListener === 'function') {
+          colorScheme.addListener(syncFavicon)
+        }
       })()
     </script>
     <!--app-head-->

@@ -109,7 +109,10 @@ const server = http.createServer(async (request, response) => {
       ))
     }
 
-    const page = await renderPage(url)
+    const protocol = request.headers['x-forwarded-proto'] || 'http'
+    const host = request.headers['x-forwarded-host'] || request.headers.host
+    const baseUrl = host ? `${protocol}://${host}` : undefined
+    const page = await renderPage(url, { baseUrl })
     const html = template
       .replace('<!--app-head-->', page.head ?? '')
       .replace('<!--app-html-->', page.html)

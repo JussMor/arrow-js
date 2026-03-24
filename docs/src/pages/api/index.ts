@@ -68,7 +68,9 @@ export function ApiPage(options: { highlightCode?: boolean } = {}) {
       <div id="api-mobile-nav-root">${nav.mobile()}</div>
       <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-12">
         <div class="flex gap-12">
-          <div id="api-sidebar-nav-root">${nav.sidebar()}</div>
+          <div id="api-sidebar-nav-root" class="hidden lg:block">
+            ${nav.sidebar()}
+          </div>
           <article class="min-w-0 max-w-3xl flex-1">
             <div class="flex items-start justify-between gap-4 mb-8">
               <h1

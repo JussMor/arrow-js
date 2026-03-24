@@ -43,15 +43,17 @@ export function HomePage(
 
       <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12">
         <div class="flex gap-12">
-          <div id="home-sidebar-nav-root">${nav.sidebar()}</div>
+          <div id="home-sidebar-nav-root" class="hidden lg:block">
+            ${nav.sidebar()}
+          </div>
           <article class="min-w-0 max-w-3xl flex-1">
             <div class="flex justify-end mb-4">
               ${CopyPageMenuIsland({ markdownPath: '/docs.md' })}
             </div>
             ${WhyArrow()} ${Quickstart({ highlightCode })}
             ${Community()}
-            ${ComponentsSection()} ${ReactiveDataSection()}
-            ${WatchingDataSection()} ${TemplatesSection()}
+            ${ReactiveDataSection()} ${TemplatesSection()}
+            ${ComponentsSection()} ${WatchingDataSection()}
             ${SandboxSection()} ${RoutingSection()} ${ExamplesSection()}
           </article>
         </div>

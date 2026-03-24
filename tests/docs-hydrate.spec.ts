@@ -12,30 +12,30 @@ describe('docs hydration', () => {
     expect(docs.head).toContain('<link rel="canonical" href="https://arrow-js.com/" />')
     expect(docs.head).toContain('<meta property="og:url" content="https://arrow-js.com/" />')
     expect(docs.head).toContain(
-      '<meta property="og:title" content="ArrowJS — Reactive interfaces in pure JavaScript" />'
+      '<meta property="og:title" content="ArrowJS — The first UI framework for the agentic era" />'
     )
     expect(docs.head).toContain(
-      '<meta property="og:image" content="https://arrow-js.com/arrow-js-og-meta.webp" />'
+      '<meta property="og:image" content="https://assets.arrow-js.com/og.webp?2" />'
     )
     expect(docs.head).toContain('<meta property="og:image:type" content="image/webp" />')
     expect(docs.head).toContain('<meta property="og:image:width" content="1200" />')
     expect(docs.head).toContain('<meta property="og:image:height" content="628" />')
     expect(docs.head).toContain('<meta name="twitter:card" content="summary_large_image" />')
     expect(docs.head).toContain(
-      '<meta name="twitter:image" content="https://arrow-js.com/arrow-js-og-meta.webp" />'
+      '<meta name="twitter:image" content="https://assets.arrow-js.com/og.webp?2" />'
     )
     expect(docs.head).toContain(
-      '<meta name="twitter:description" content="A ~5KB runtime with zero dependencies. Observable data, declarative DOM, and SSR built on platform primitives." />'
+      '<meta name="twitter:description" content="A tiny, blazing-fast, zero-dependency, type-safe framework. No build step required. Isolate agent-generated UI inside WebAssembly sandboxes while rendering full inline DOM directly in your app — no iframes, no pre-defined components." />'
     )
 
     expect(api.head).toContain('<link rel="canonical" href="https://arrow-js.com/api" />')
     expect(api.head).toContain('<meta property="og:url" content="https://arrow-js.com/api" />')
-    expect(api.head).toContain('<meta property="og:title" content="API Reference')
+    expect(api.head).toContain('<meta property="og:title" content="API Reference — ArrowJS"')
     expect(api.head).toContain(
-      '<meta property="og:image:alt" content="ArrowJS logo on a light grid background with the text: A tiny (~5KB), blazing-fast, type-safe reactive framework. Zero dependencies and no build step required." />'
+      '<meta property="og:image:alt" content="ArrowJS logo on a light grid background with the text: A tiny, blazing-fast, type-safe reactive framework with WASM sandboxing for safe AI-generated UIs." />'
     )
     expect(api.head).toContain(
-      '<meta name="twitter:description" content="Comprehensive API reference for every ArrowJS export across @arrow-js/core, framework, ssr, and hydrate." />'
+      '<meta name="twitter:description" content="Comprehensive API reference for every ArrowJS export across @arrow-js/core, framework, ssr, hydrate, and sandbox." />'
     )
   })
 

@@ -1,4 +1,4 @@
-name = "arrowjs-docs-preview"
+name = 'arrowjs-docs'
 main = "src/index.ts"
 compatibility_date = "2026-03-20"
 workers_dev = true
@@ -7,7 +7,7 @@ workers_dev = true
 directory = "../dist/static"
 binding = "ASSETS"
 not_found_handling = "404-page"
-run_worker_first = ["/docs", "/docs/", "/play/preview", "/play/preview/"]
+run_worker_first = ["/", "/api", "/api/", "/docs", "/docs/", "/play", "/play/", "/play/index.html", "/play/preview", "/play/preview/"]
 
 [[kv_namespaces]]
 binding = "PLAY_KV"

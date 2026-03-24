@@ -47,8 +47,8 @@ function renderHead(
   ].join('')
 }
 
-export async function renderPage(url: string) {
-  const page = await createPage(url)
+export async function renderPage(url: string, options?: { baseUrl?: string }) {
+  const page = await createPage(url, { baseUrl: options?.baseUrl })
   const result = await renderToString(page.view)
 
   return {
