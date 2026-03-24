@@ -13,17 +13,6 @@ export function createExpressionBlock(len: number): number {
   return pointer
 }
 
-export function initExpressions(
-  expSlots: ArrayLike<unknown>,
-  pointer: number,
-  offset = 0
-): void {
-  const len = expressionPool[pointer] as number
-  for (let i = 1; i <= len; i++) {
-    expressionPool[pointer + i] = expSlots[offset + i - 1] as ArrowExpression
-  }
-}
-
 export function writeExpressions(
   expSlots: ArrayLike<unknown>,
   pointer: number,

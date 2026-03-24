@@ -27,7 +27,7 @@ type AsyncFactory<T extends ReactiveTarget, TValue, TEvents extends EventMap> =
   | ((props: Props<T>, emit: Emit<TEvents>) => Promise<TValue> | TValue)
   | ((props: undefined, emit: Emit<TEvents>) => Promise<TValue> | TValue)
 
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as {
+const AsyncFunction = (async () => {}).constructor as {
   new (...args: unknown[]): unknown
 }
 
@@ -105,34 +105,25 @@ function setComponentKey(this: ComponentCall, key: ArrowTemplateKey) {
 
 const propsProxyHandler: ProxyHandler<SourceBox> = {
   get(target, key) {
-    const source = target[0]
-    if (!source) return
-    return (source as Record<PropertyKey, unknown>)[key as PropertyKey]
+    return target[0]?.[key as keyof (typeof target)[0]]
   },
   has(target, key) {
-    const source = target[0]
-    return !!source && key in source
+    return key in (target[0] || {})
   },
   ownKeys(target) {
-    const source = target[0]
-    return source ? Reflect.ownKeys(source) : []
+    return Reflect.ownKeys(target[0] || {})
   },
   getOwnPropertyDescriptor(target, key) {
     const source = target[0]
-    if (!source) return undefined
-    return (
-      Reflect.getOwnPropertyDescriptor(source, key) ?? {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        value: (source as Record<PropertyKey, unknown>)[key as PropertyKey],
-      }
-    )
+    return source && {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: (source as Record<PropertyKey, unknown>)[key as PropertyKey],
+    }
   },
   set(target, key, value) {
-    const source = target[0]
-    if (!source) return false
-    return Reflect.set(source as object, key, value)
+    return !!target[0] && Reflect.set(target[0] as object, key, value)
   },
 }
 
@@ -206,7 +197,7 @@ export function component<
   factory: SyncFactory<T, TEvents> | AsyncFactory<T, TValue, TEvents>,
   options?: AsyncComponentOptions<T, TValue, TEvents, TSnapshot>
 ): Component<TEvents> | ComponentWithProps<T, TEvents> {
-  if (options || factory instanceof AsyncFunction) {
+  if (options || factory.constructor === AsyncFunction) {
     if (!asyncComponentInstaller) {
       throw Error('Async runtime missing.')
     }
@@ -244,11 +235,8 @@ export function createPropsProxy(
 ): [Props<ReactiveTarget>, Emit<EventMap>, SourceBox] {
   const box = reactive({ 0: source, 1: factory, 2: events })
   const emit = ((event: keyof EventMap, payload: unknown) => {
-    const handlers = box[2]
-    const handler = handlers?.[event]
-    if (typeof handler === 'function') {
-      handler(payload)
-    }
+    const handler = box[2]?.[event]
+    if (typeof handler === 'function') handler(payload)
   }) as Emit<EventMap>
 
   return [

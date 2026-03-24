@@ -67,9 +67,7 @@ export interface PropertyObserver<T> {
  */
 type Dependencies = Array<number | PropertyKey>
 
-type ListenerSlot =
-  | PropertyObserver<unknown>
-  | Set<PropertyObserver<unknown>>
+type ListenerSlot = Set<PropertyObserver<unknown>>
 type ListenerMap = Partial<Record<PropertyKey, ListenerSlot>>
 
 /**
@@ -120,6 +118,17 @@ const dependencyPool: Dependencies[] = []
 const arrayMutationWrappers: Array<
   Partial<Record<PropertyKey, (...args: unknown[]) => unknown>> | undefined
 > = []
+const arrayMutations = {
+  push: 1,
+  pop: 1,
+  shift: 1,
+  unshift: 1,
+  splice: 1,
+  sort: 1,
+  copyWithin: 1,
+  fill: 1,
+  reverse: 1,
+}
 
 /**
  * A map of child ids to their parents (a child can have multiple parents).
@@ -140,7 +149,15 @@ export function reactive<T extends ReactiveTarget, TValue>(
   data: T | (() => TValue)
 ): Reactive<T> | Computed<TValue> {
   if (typeof data === 'function') {
-    return createComputed(data as () => TValue)
+    const state = reactive({
+      value: undefined as TValue,
+    }) as Reactive<{ value: TValue }>
+    computedIds[getId(state as object)] = true
+    watch(
+      data as () => TValue,
+      (value) => (state.value = value as Reactive<{ value: TValue }>['value'])
+    )
+    return state as Computed<TValue>
   }
   // The data is already a reactive object, so return it.
   if (isR(data)) return data as Reactive<T>
@@ -153,52 +170,8 @@ export function reactive<T extends ReactiveTarget, TValue>(
   // Create the actual reactive proxy.
   const proxy = new Proxy(data, proxyHandler) as Reactive<T>
   // let the ids know about the index
-  ids.set(data, index).set(proxy, index)
+  ids.set(data, id).set(proxy, id)
   return proxy
-}
-
-/**
- * Determines if a certain key is in the target object.
- * @param target - The object to check.
- * @param key - The property to check.
- * @returns
- */
-function has(id: number, target: ReactiveTarget, key: PropertyKey): boolean {
-  if (key in api) return true
-  track(id, key)
-  return key in target
-}
-
-/**
- * Gets a property from the target object.
- * @param target - The object to get the property on.
- * @param key - The property to get.
- * @param receiver - The proxy object.
- * @returns
- */
-function get(
-  id: number,
-  target: ReactiveTarget,
-  key: PropertyKey,
-  receiver: object
-): unknown {
-  if (key in api) return api[key as keyof typeof api]
-  const result = Reflect.get(target, key, receiver)
-  let child: Reactive<ReactiveTarget> | undefined
-  if (isO(result) && !isR(result)) {
-    // Lazily create a child reactive object.
-    child = createChild(result, id, key)
-    target[key as number] = child
-  }
-  const value = child ?? result
-
-  if (Array.isArray(target)) {
-    // Explicitly don’t track the length property.
-    return trackArray(id, key, target, value)
-  }
-  if (isComputed(value)) return readComputed(value, id, key)
-  track(id, key)
-  return value
 }
 
 /**
@@ -214,7 +187,10 @@ function trackArray(
   target: ReactiveTarget,
   value: unknown
 ) {
-  if (typeof value === 'function' && isArrayMutation(key)) {
+  if (
+    typeof value === 'function' &&
+    arrayMutations[key as keyof typeof arrayMutations]
+  ) {
     let wrappers = arrayMutationWrappers[id]
     if (!wrappers) wrappers = arrayMutationWrappers[id] = {}
     let wrapper = wrappers[key]
@@ -239,61 +215,64 @@ function trackArray(
   return value
 }
 
-/**
- * Gets a property from the target object.
- * @param target - The object to get the property on.
- * @param key - The property to get.
- * @param receiver - The proxy object.
- * @returns
- */
-function set(
-  id: number,
-  target: ReactiveTarget,
-  key: PropertyKey,
-  value: unknown,
-  receiver: object
-): boolean {
-  // If this is a new property then we need to notify parent properties
-  const isNewProperty = !(key in target)
-  // If the newly assigned item is not reactive, make it so.
-  const newReactive =
-    isO(value) && !isR(value) ? createChild(value, id, key) : null
-  // Retrieve the old value
-  const oldValue = target[key as number]
-  // The new value
-  const newValue = newReactive ?? value
-  if (isR(newValue) && computedIds[getId(newValue as object)]) {
-    linkParent(getId(newValue as object), id, key)
-  }
-  // Perform the actual set operation
-  const didSucceed = Reflect.set(target, key, newValue, receiver)
-  // If the old value was reactive, and the new value is
-  if (oldValue !== newValue && isR(oldValue) && isR(newValue)) {
-    reassign(id, key, getId(oldValue), getId(newValue))
-  }
-  // Notify all listeners
-  emit(
-    id,
-    key,
-    value,
-    oldValue,
-    isNewProperty || (key === 'value' && computedIds[id])
-  )
-  if (Array.isArray(target) && key === 'length') {
-    emitParents(id)
-  }
-  return didSucceed
-}
-
 const proxyHandler: ProxyHandler<ReactiveTarget> = {
   has(target, key) {
-    return has(getId(target as object), target, key)
+    if (key in api) return true
+    track(getId(target as object), key)
+    return key in target
   },
   get(target, key, receiver) {
-    return get(getId(target as object), target, key, receiver)
+    const id = getId(target as object)
+    if (key in api) return api[key as keyof typeof api]
+    const result = Reflect.get(target, key, receiver)
+    let child: Reactive<ReactiveTarget> | undefined
+    if (isO(result) && !isR(result)) {
+      child = createChild(result, id, key)
+      ;(target as Record<PropertyKey, unknown>)[key] = child
+    }
+    const value = child ?? result
+    if (Array.isArray(target)) return trackArray(id, key, target, value)
+    if (isComputed(value)) return readComputed(value, id, key)
+    track(id, key)
+    return value
   },
   set(target, key, value, receiver) {
-    return set(getId(target as object), target, key, value, receiver)
+    const id = getId(target as object)
+    const isNewProperty = !(key in target)
+    const newReactive =
+      isO(value) && !isR(value) ? createChild(value, id, key) : null
+    const oldValue = (target as Record<PropertyKey, unknown>)[key]
+    const newValue = newReactive ?? value
+    if (isR(newValue) && computedIds[getId(newValue as object)]) {
+      linkParent(getId(newValue as object), id, key)
+    }
+    const didSucceed = Reflect.set(target, key, newValue, receiver)
+    if (oldValue !== newValue && isR(oldValue) && isR(newValue)) {
+      const oldParents = parents[getId(oldValue as object)]
+      if (oldParents) {
+        let index = -1
+        for (let i = 0; i < oldParents.length; i++) {
+          const [parent, property] = oldParents[i]
+          if (parent == id && property == key) {
+            index = i
+            break
+          }
+        }
+        if (index > -1) oldParents.splice(index, 1)
+      }
+      linkParent(getId(newValue as object), id, key)
+    }
+    emit(
+      id,
+      key,
+      value,
+      oldValue,
+      isNewProperty || (key === 'value' && computedIds[id])
+    )
+    if (Array.isArray(target) && key === 'length') {
+      emitParents(id)
+    }
+    return didSucceed
   },
 }
 
@@ -312,19 +291,6 @@ function createChild(
   const r = reactive(child)
   linkParent(getId(child), parentId, key)
   return r
-}
-
-function createComputed<T>(effect: () => T): Computed<T> {
-  const source = {
-    value: undefined as T,
-  }
-  const state = reactive(source) as Reactive<{ value: T }>
-  computedIds[getId(state as object)] = true
-  watch(
-    effect,
-    (value) => (state.value = value as Reactive<{ value: T }>['value'])
-  )
-  return state as Computed<T>
 }
 
 function isComputed(value: unknown): value is Reactive<{ value: unknown }> {
@@ -357,34 +323,6 @@ function linkParent(childId: number, parentId: number, key: PropertyKey) {
 }
 
 /**
- * Transfers listeners from one parent object’s reactive property to another.
- * @param parentId - The parent id
- * @param key - The property key to reassign
- * @param from - The previous reactive id
- * @param to - The new reactive id
- */
-function reassign(
-  parentId: number,
-  key: PropertyKey,
-  from: number,
-  to: number
-) {
-  // Remove the old parent relationship
-  if (parents[from]) {
-    let index = -1
-    for (let i = 0; i < parents[from].length; i++) {
-      const [parent, property] = parents[from][i]
-      if (parent == parentId && property == key) {
-        index = i
-        break
-      }
-    }
-    if (index > -1) parents[from].splice(index, 1)
-  }
-  linkParent(to, parentId, key)
-}
-
-/**
  *
  * @param id - The reactive id that changed.
  * @param key - The property that changed.
@@ -401,11 +339,7 @@ function emit(
   const targetListeners = listeners[id]
   const propertyListeners = targetListeners[key]
   if (propertyListeners) {
-    if (typeof propertyListeners === 'function') {
-      propertyListeners(newValue, oldValue)
-    } else {
-      for (const callback of propertyListeners) callback(newValue, oldValue)
-    }
+    for (const callback of propertyListeners) callback(newValue, oldValue)
   }
   if (notifyParents) {
     emitParents(id)
@@ -463,7 +397,7 @@ function track(id: number, property: PropertyKey): void {
  * Begin tracking reactive dependencies.
  */
 function startTracking() {
-  trackedDependencies[++trackKey] = takeDependencies()
+  trackedDependencies[++trackKey] = dependencyPool.pop() ?? []
 }
 
 /**
@@ -475,15 +409,24 @@ function stopTracking(watchKey: number, callback: PropertyObserver<unknown>) {
   const key = trackKey--
   const deps = trackedDependencies[key]!
   const previousDeps = watchedDependencies[watchKey]
-  if (sameDependencies(previousDeps, deps)) {
-    watchedDependencies[watchKey] = previousDeps
-    releaseDependencies(deps)
-    trackedDependencies[key] = undefined
-    return
+  const previousLength = previousDeps?.length
+  if (previousLength && previousLength === deps.length) {
+    let matched = true
+    for (let i = 0; i < previousLength; i++) {
+      if (previousDeps[i] === deps[i]) continue
+      matched = false
+      break
+    }
+    if (matched) {
+      watchedDependencies[watchKey] = previousDeps
+      deps.length = 0
+      dependencyPool.push(deps)
+      trackedDependencies[key] = undefined
+      return
+    }
   }
   flushListeners(previousDeps, callback)
-  const len = deps.length
-  for (let i = 0; i < len; i += 2) {
+  for (let i = 0; i < deps.length; i += 2) {
     addListener(
       listeners[deps[i] as number],
       deps[i + 1],
@@ -505,11 +448,11 @@ function flushListeners(
   callback: PropertyObserver<unknown>
 ) {
   if (!deps) return
-  const len = deps.length
-  for (let i = 0; i < len; i += 2) {
+  for (let i = 0; i < deps.length; i += 2) {
     removeListener(listeners[deps[i] as number], deps[i + 1], callback)
   }
-  releaseDependencies(deps)
+  deps.length = 0
+  dependencyPool.push(deps)
 }
 
 function addListener(
@@ -517,17 +460,7 @@ function addListener(
   key: PropertyKey,
   callback: PropertyObserver<unknown>
 ) {
-  const slot = targetListeners[key]
-  if (!slot) {
-    targetListeners[key] = callback
-    return
-  }
-  if (slot === callback) return
-  if (typeof slot === 'function') {
-    targetListeners[key] = new Set([slot, callback])
-    return
-  }
-  slot.add(callback)
+  ;(targetListeners[key] ??= new Set()).add(callback)
 }
 
 function removeListener(
@@ -537,40 +470,10 @@ function removeListener(
 ) {
   const slot = targetListeners[key]
   if (!slot) return
-  if (slot === callback) {
-    delete targetListeners[key]
-    return
-  }
-  if (typeof slot === 'function') return
   slot.delete(callback)
-  if (slot.size === 1) {
-    targetListeners[key] = slot.values().next().value as PropertyObserver<unknown>
-  } else if (!slot.size) {
+  if (!slot.size) {
     delete targetListeners[key]
   }
-}
-
-function takeDependencies(): Dependencies {
-  return dependencyPool.pop() ?? []
-}
-
-function sameDependencies(
-  left: Dependencies | undefined,
-  right: Dependencies | undefined
-) {
-  if (!left || !right) return false
-  const length = left.length
-  if (length !== right.length) return false
-  for (let i = 0; i < length; i++) {
-    if (left[i] !== right[i]) return false
-  }
-  return true
-}
-
-function releaseDependencies(deps: Dependencies | undefined) {
-  if (!deps) return
-  deps.length = 0
-  dependencyPool.push(deps)
 }
 
 /**
@@ -620,20 +523,4 @@ export function watch<
   if (!isPointer) registerCleanup(stop)
   if (isPointer) onExpressionUpdate(effect as number, runEffect)
   return [runEffect(), stop]
-}
-
-function isArrayMutation(key: PropertyKey) {
-  switch (key) {
-    case 'push':
-    case 'pop':
-    case 'shift':
-    case 'unshift':
-    case 'splice':
-    case 'sort':
-    case 'copyWithin':
-    case 'fill':
-    case 'reverse':
-      return true
-  }
-  return false
 }
