@@ -233,6 +233,9 @@ function trackArray(
     return wrapper
   }
   if (isComputed(value)) return readComputed(value, id, key)
+  if (key !== 'length' && typeof value !== 'function') {
+    track(id, key)
+  }
   return value
 }
 
@@ -276,7 +279,6 @@ function set(
     oldValue,
     isNewProperty || (key === 'value' && computedIds[id])
   )
-  // If the array length is modified, notify all parents
   if (Array.isArray(target) && key === 'length') {
     emitParents(id)
   }

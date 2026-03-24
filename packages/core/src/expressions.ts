@@ -1,7 +1,7 @@
 import { ArrowExpression } from './html'
 
-export const expressionPool: Array<number | ArrowExpression> = []
-const expressionObservers: CallableFunction[] = []
+export const expressionPool: Array<number | ArrowExpression | undefined> = []
+const expressionObservers: Array<CallableFunction | undefined> = []
 const freeExpressionPointers: number[][] = []
 let cursor = 0
 
@@ -11,6 +11,17 @@ export function createExpressionBlock(len: number): number {
   expressionPool[pointer] = len
   if (pointer === cursor) cursor += len + 1
   return pointer
+}
+
+export function initExpressions(
+  expSlots: ArrayLike<unknown>,
+  pointer: number,
+  offset = 0
+): void {
+  const len = expressionPool[pointer] as number
+  for (let i = 1; i <= len; i++) {
+    expressionPool[pointer + i] = expSlots[offset + i - 1] as ArrowExpression
+  }
 }
 
 export function writeExpressions(
@@ -32,19 +43,15 @@ export function onExpressionUpdate(
   pointer: number,
   observer?: CallableFunction
 ): void {
-  if (observer) {
-    expressionObservers[pointer] = observer
-    return
-  }
-  delete expressionObservers[pointer]
+  expressionObservers[pointer] = observer
 }
 
 export function releaseExpressions(pointer: number): void {
   const len = expressionPool[pointer] as number | undefined
   if (len === undefined) return
   for (let i = 0; i <= len; i++) {
-    delete expressionPool[pointer + i]
-    delete expressionObservers[pointer + i]
+    expressionPool[pointer + i] = undefined
+    expressionObservers[pointer + i] = undefined
   }
   ;(freeExpressionPointers[len] ??= []).push(pointer)
 }

@@ -92,47 +92,12 @@ function frameworkDir(keyed) {
 }
 
 function createArrowMainSource(keyed) {
-  const title = keyed ? 'Arrowjs (keyed)' : 'Arrowjs (Non-keyed)'
-  const rows = keyed
-    ? `() => {
+  const title = keyed ? 'ArrowJS (keyed)' : 'ArrowJS (non-keyed)'
+  const rows = `() => {
         const items = data.items
         const rows = new Array(items.length)
         for (let i = 0; i < items.length; i++) {
-          const row = items[i]
-          const id = row.id
-          rows[i] = html\`<tr class="\${() => data.selected === id ? 'danger' : ''}">
-            <td class="col-md-1">\${id}</td>
-            <td class="col-md-4">
-              <a @click="\${() => select(id)}">\${() => row.label}</a>
-            </td>
-            <td class="col-md-1">
-              <a @click="\${() => remove(id)}">
-              <span class="glyphicon glyphicon-remove" aria-hidden="true" />
-              </a>
-            </td>
-            <td class="col-md-6"/>
-          </tr>\`.key(id).id(id)
-        }
-        return rows
-      }`
-    : `() => {
-        const items = data.items
-        const rows = new Array(items.length)
-        for (let i = 0; i < items.length; i++) {
-          const row = items[i]
-          const id = row.id
-          rows[i] = html\`<tr class="\${() => data.selected === id ? 'danger' : ''}">
-            <td class="col-md-1">\${id}</td>
-            <td class="col-md-4">
-              <a @click="\${() => select(id)}">\${() => row.label}</a>
-            </td>
-            <td class="col-md-1">
-              <a @click="\${() => remove(id)}">
-              <span class="glyphicon glyphicon-remove" aria-hidden="true" />
-              </a>
-            </td>
-            <td class="col-md-6"/>
-          </tr>\`.id(id)
+          rows[i] = getRowView(items[i])
         }
         return rows
       }`
@@ -143,19 +108,20 @@ let data = reactive({
 });
 
 let rowId = 1;
-const add = () => data.items = data.items.concat(buildData(1000)),
+const rowViews = new WeakMap();
+const adjectives = ["pretty", "large", "big", "small", "tall", "short", "long", "handsome", "plain", "quaint", "clean", "elegant", "easy", "angry", "crazy", "helpful", "mushy", "odd", "unsightly", "adorable", "important", "inexpensive", "cheap", "expensive", "fancy"];
+const colours = ["red", "yellow", "blue", "green", "pink", "brown", "purple", "brown", "white", "black", "orange"];
+const nouns = ["table", "chair", "house", "bbq", "desk", "car", "pony", "cookie", "sandwich", "burger", "pizza", "mouse", "keyboard"];
+const add = () => data.items.push(...buildData(1000)),
   clear = () => {
-    data.items = [];
+    data.items.length = 0;
     data.selected = undefined;
   },
   partialUpdate = () => {
-    for (let i = 0; i < data.items.length; i += 10) {
-      data.items[i].label += ' !!!';
+    const items = data.items;
+    for (let i = 0; i < items.length; i += 10) {
+      items[i].label += ' !!!';
     }
-  },
-  remove = (num) => {
-    const idx = data.items.findIndex(d => d.id === num);
-    data.items.splice(idx, 1);
   },
   run = () => {
     data.items = buildData(1000);
@@ -165,20 +131,46 @@ const add = () => data.items = data.items.concat(buildData(1000)),
     data.items = buildData(10000);
     data.selected = undefined;
   },
-  select = (id) => data.selected = id,
   swapRows = () => {
-    if (data.items.length > 998) {
-      data.items = [data.items[0], data.items[998], ...data.items.slice(2, 998), data.items[1], data.items[999]];
+    const items = data.items;
+    if (items.length > 998) {
+      const item = items[1];
+      items[1] = items[998];
+      items[998] = item;
     }
   };
+
+function getRowView(row) {
+  let view = rowViews.get(row);
+  if (view) return view;
+  const id = row.id;
+  view = html\`<tr class="\${() => data.selected === id ? 'danger' : ''}" data-id="\${id}"><td class="col-md-1">\${id}</td><td class="col-md-4"><a data-action="select">\${() => row.label}</a></td><td class="col-md-1"><a data-action="remove"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>\`${keyed ? `.key(id)` : ''};
+  rowViews.set(row, view);
+  return view;
+}
+
+function handleRowClick(event) {
+  const target = event.target instanceof Element
+    ? event.target.closest('[data-action]')
+    : null;
+  if (!target) return;
+  const action = target.getAttribute('data-action');
+  const id = Number(target.closest('tr')?.getAttribute('data-id'));
+  if (!id) return;
+  if (action === 'select') {
+    data.selected = id;
+    return;
+  }
+  if (action === 'remove') {
+    const idx = data.items.findIndex((row) => row.id === id);
+    if (idx > -1) data.items.splice(idx, 1);
+  }
+}
 
 function _random(max) { return Math.round(Math.random() * 1000) % max; };
 
 function buildData(count = 1000) {
-  const adjectives = ["pretty", "large", "big", "small", "tall", "short", "long", "handsome", "plain", "quaint", "clean", "elegant", "easy", "angry", "crazy", "helpful", "mushy", "odd", "unsightly", "adorable", "important", "inexpensive", "cheap", "expensive", "fancy"],
-    colours = ["red", "yellow", "blue", "green", "pink", "brown", "purple", "brown", "white", "black", "orange"],
-    nouns = ["table", "chair", "house", "bbq", "desk", "car", "pony", "cookie", "sandwich", "burger", "pizza", "mouse", "keyboard"],
-    data = new Array(count);
+  const data = new Array(count);
   for (var i = 0; i < count; i++)
     data[i] = { id: rowId++, label: adjectives[_random(adjectives.length)] + " " + colours[_random(colours.length)] + " " + nouns[_random(nouns.length)] };
   return data;
@@ -216,12 +208,30 @@ html\`<div class="container">
   </div>
   </div>
   <table class="table table-hover table-striped test-data">
-    <tbody>
+    <tbody @click="\${handleRowClick}">
       \${${rows}}
     </tbody>
   </table>
+  <span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true"></span>
 </div>
-\`(document.getElementById('arrow'))
+\`(document.getElementById('main'))
+`
+}
+
+function createArrowIndexHtml(keyed) {
+  const title = keyed ? 'ArrowJS • Keyed' : 'ArrowJS • Non-keyed'
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <link href="/css/currentStyle.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="main"></div>
+  <script type="module" src="src/Main.js"></script>
+</body>
+</html>
 `
 }
 
@@ -237,11 +247,13 @@ export function syncArrowBenchmark() {
     const targetDir = frameworkDir(keyed)
     const srcDir = join(targetDir, 'src')
     const packagePath = join(targetDir, 'package.json')
+    const indexPath = join(targetDir, 'index.html')
     const mainPath = join(srcDir, 'Main.js')
 
     mkdirSync(srcDir, { recursive: true })
     copyFileSync(distFile, join(srcDir, 'arrow.js'))
     writeFileSync(mainPath, createArrowMainSource(keyed))
+    writeFileSync(indexPath, createArrowIndexHtml(keyed))
 
     if (existsSync(packagePath)) {
       const pkg = JSON.parse(readFileSync(packagePath, 'utf8'))

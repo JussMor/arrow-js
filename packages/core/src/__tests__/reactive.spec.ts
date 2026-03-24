@@ -311,6 +311,18 @@ describe('reactive', () => {
     expect(callback).toHaveBeenCalledTimes(1)
   })
 
+  it('will rerun watchers when an array index is reassigned', async () => {
+    const data = reactive({
+      list: ['a', 'b'],
+    })
+    const callback = vi.fn()
+    watch(() => data.list[1], callback)
+    data.list[1] = 'c'
+    await nextTick()
+    expect(callback).toHaveBeenCalledTimes(2)
+    expect(callback.mock.calls[1][0]).toBe('c')
+  })
+
   it('will notify the root property when the array spliced to empty', async () => {
     const data = reactive({
       list: [] as { name: string; id: number }[],

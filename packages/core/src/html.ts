@@ -15,6 +15,7 @@ import type { ComponentCall } from './component'
 import {
   createExpressionBlock,
   expressionPool,
+  initExpressions,
   onExpressionUpdate,
   releaseExpressions,
   writeExpressions,
@@ -128,7 +129,6 @@ type RenderController = ((
   adopt: (map: NodeMap, visited: WeakSet<Chunk>) => void
 }
 type InternalTemplate = ArrowTemplate & {
-  d?: () => void
   _a?: ArrayLike<unknown>
   _h?: Chunk
   _m?: boolean
@@ -241,7 +241,17 @@ function syncTemplateToChunk(
   chunk: Chunk,
   mounted = false
 ) {
-  if (chunk._t && chunk._t !== template) (chunk._t as InternalTemplate).d?.()
+  if (chunk._t === template) {
+    chunk.k = template._k
+    chunk.i = template._i
+    template._h = chunk
+    template._m = mounted
+    return
+  }
+  if (chunk._t && chunk._t !== template) {
+    chunk._t._m = false
+    chunk._t._h = undefined
+  }
   chunk._t = template
   chunk.k = template._k
   chunk.i = template._i
@@ -426,7 +436,6 @@ export function html(strings: TemplateStringsArray | string[]): ArrowTemplate {
   template._s = strings
   template.key = setTemplateKey
   template.id = setTemplateId
-  template.d = resetTemplate
   return template
 }
 
@@ -451,20 +460,16 @@ function setTemplateId(this: InternalTemplate, id: ArrowTemplateId) {
   return this
 }
 
-function resetTemplate(this: InternalTemplate) {
-  this._m = false
-  this._h = undefined
-}
-
 function renderTemplate(template: InternalTemplate, el?: ParentNode) {
   const chunk = template._c()
   if (!template._m) {
     template._m = true
     if (!chunk.b) {
-      writeExpressions(template._a!, chunk.e, template._o)
+      initExpressions(template._a!, chunk.e, template._o)
       return createBindings(chunk, el)
     }
-    return el ? el.appendChild(chunk.dom) && el : chunk.dom
+    moveDOMRef(chunk.ref, el ?? chunk.dom)
+    return el ?? chunk.dom
   }
   moveDOMRef(chunk.ref, chunk.dom)
   return el ? el.appendChild(chunk.dom) : chunk.dom
@@ -691,6 +696,17 @@ function createRenderFn(capture: HydrationCapture | null): RenderController {
         let i = 0
         const renderableLength = renderable.length
         const previousLength = previous.length
+        if (renderableLength && previousLength === 1 && !isChunk(previous[0])) {
+          const [fragment, renderedList] = renderList(renderable)
+          previous[0].replaceWith(fragment)
+          previous = renderedList
+          return
+        }
+        const keyedList = patchKeyedList(renderable, previous)
+        if (keyedList) {
+          previous = keyedList
+          return
+        }
         let anchor: ChildNode | undefined
         const renderedList: Rendered[] = []
         const mark = ++renderedMark
@@ -723,9 +739,13 @@ function createRenderFn(capture: HydrationCapture | null): RenderController {
           markRenderedValue(used, mark)
         }
         if (!renderableLength) {
-          getNode(previous[0]).after(
+          getNode(previous).after(
             (renderedList[0] = document.createTextNode(''))
           )
+          for (i = 0; i < previousLength; i++) forgetChunk(previous[i])
+          unmount(previous)
+          previous = renderedList
+          return
         } else if (renderableLength > previousLength) {
           anchor?.after(updaterFrag!)
         }
@@ -764,6 +784,151 @@ function createRenderFn(capture: HydrationCapture | null): RenderController {
       renderedItems[i] = mountItem(renderable[i], fragment)
     }
     return [fragment, renderedItems]
+  }
+
+  function getRenderableKey(
+    renderable: string | number | boolean | ComponentCall | ArrowTemplate
+  ): Exclude<ArrowTemplateKey, undefined> | undefined {
+    if (isCmp(renderable)) return renderable.k as Exclude<ArrowTemplateKey, undefined> | undefined
+    if (isTpl(renderable)) {
+      return (renderable as InternalTemplate)._k as
+        | Exclude<ArrowTemplateKey, undefined>
+        | undefined
+    }
+    return undefined
+  }
+
+  function insertRendered(
+    rendered: Rendered,
+    parent: Node,
+    before: ChildNode | null
+  ) {
+    if (isChunk(rendered)) {
+      moveDOMRef(rendered.ref, parent, before)
+      return
+    }
+    parent.insertBefore(rendered, before)
+  }
+
+  function increasingSubsequenceMarks(values: number[]) {
+    const length = values.length
+    const marks = new Array<boolean>(length).fill(false)
+    const predecessors = new Array<number>(length).fill(-1)
+    const tails: number[] = []
+
+    for (let i = 0; i < length; i++) {
+      const value = values[i]
+      if (value < 0) continue
+      let low = 0
+      let high = tails.length
+      while (low < high) {
+        const mid = (low + high) >> 1
+        if (values[tails[mid]] < value) low = mid + 1
+        else high = mid
+      }
+      if (low > 0) predecessors[i] = tails[low - 1]
+      tails[low] = i
+    }
+
+    let index = tails[tails.length - 1]
+    while (index !== undefined && index >= 0) {
+      marks[index] = true
+      index = predecessors[index]
+    }
+
+    return marks
+  }
+
+  function patchKeyedList(
+    renderable: Array<string | number | boolean | ComponentCall | ArrowTemplate>,
+    previousList: Rendered[]
+  ): Rendered[] | null {
+    const renderableLength = renderable.length
+    const previousLength = previousList.length
+    if (!renderableLength) {
+      const placeholder = document.createTextNode('')
+      getNode(previousList).after(placeholder)
+      for (let i = 0; i < previousLength; i++) forgetChunk(previousList[i])
+      unmount(previousList)
+      return [placeholder]
+    }
+
+    const previousByKey = new Map<Exclude<ArrowTemplateKey, undefined>, Chunk>()
+    const previousIndexByKey = new Map<Exclude<ArrowTemplateKey, undefined>, number>()
+    for (let i = 0; i < previousLength; i++) {
+      const rendered = previousList[i]
+      if (!isChunk(rendered) || rendered.k === undefined) return null
+      if (previousByKey.has(rendered.k as Exclude<ArrowTemplateKey, undefined>)) {
+        return null
+      }
+      previousByKey.set(rendered.k as Exclude<ArrowTemplateKey, undefined>, rendered)
+      previousIndexByKey.set(
+        rendered.k as Exclude<ArrowTemplateKey, undefined>,
+        i
+      )
+    }
+
+    const nextKeys = new Set<Exclude<ArrowTemplateKey, undefined>>()
+    let overlaps = 0
+    for (let i = 0; i < renderableLength; i++) {
+      const key = getRenderableKey(renderable[i])
+      if (key === undefined || nextKeys.has(key)) return null
+      nextKeys.add(key)
+      if (previousByKey.has(key)) overlaps++
+    }
+    if (!overlaps) return null
+
+    const renderedList = new Array(renderableLength) as Rendered[]
+    const oldIndices = new Array<number>(renderableLength)
+
+    for (let i = 0; i < renderableLength; i++) {
+      const item = renderable[i]
+      const key = getRenderableKey(item) as Exclude<ArrowTemplateKey, undefined>
+
+      const existing = previousByKey.get(key)
+      if (existing) {
+        if (isCmp(item)) {
+          if (existing.s?.[1] !== item.h) return null
+          if (existing.s[0] !== item.p) existing.s[0] = item.p
+          if (existing.s[2] !== item.e) existing.s[2] = item.e
+        } else if (isTpl(item)) {
+          syncTemplateToChunk(item as InternalTemplate, existing, true)
+        } else {
+          return null
+        }
+        renderedList[i] = existing
+        oldIndices[i] = previousIndexByKey.get(key) as number
+      } else {
+        if (!isCmp(item) && !isTpl(item)) return null
+        const fragment = document.createDocumentFragment()
+        renderedList[i] = mountItem(item, fragment)
+        oldIndices[i] = -1
+      }
+    }
+
+    const stay = increasingSubsequenceMarks(oldIndices)
+    const parent = getNode(previousList[0]).parentNode
+    if (!parent) return null
+
+    let before = getNode(previousList[previousLength - 1]).nextSibling as
+      | ChildNode
+      | null
+    for (let i = renderableLength - 1; i >= 0; i--) {
+      const rendered = renderedList[i]
+      if (oldIndices[i] === -1 || !stay[i]) {
+        insertRendered(rendered, parent, before)
+      }
+      before = getNode(rendered, undefined, true)
+    }
+
+    for (let i = 0; i < previousLength; i++) {
+      const stale = previousList[i] as Chunk
+      if (nextKeys.has(stale.k as Exclude<ArrowTemplateKey, undefined>)) continue
+      forgetChunk(stale)
+      unmount(stale)
+    }
+
+    return renderedList
   }
 
   function patch(
@@ -922,9 +1087,10 @@ let unmountStack: Array<
   | Array<Chunk | Text | ChildNode>
 > = []
 
-function destroyChunk(chunk: Chunk) {
+function destroyChunk(chunk: Chunk, detached = false) {
   if (chunk.st) removeStaleChunk(chunk)
-  ;(chunk._t as InternalTemplate).d?.()
+  chunk._t._m = false
+  chunk._t._h = undefined
   detachChunkEvents(chunk)
   if (chunk.u) {
     for (let i = 0; i < chunk.u.length; i++) chunk.u[i]()
@@ -935,7 +1101,7 @@ function destroyChunk(chunk: Chunk) {
     chunk.e = -1
   }
   let node = chunk.ref.f
-  if (node) {
+  if (!detached && node) {
     const last = chunk.ref.l
     if (node === last) node.remove()
     else {
@@ -961,9 +1127,10 @@ function destroyChunk(chunk: Chunk) {
   freeChunk(chunk)
 }
 
-function recycleChunk(chunk: Chunk) {
-  moveDOMRef(chunk.ref, chunk.dom)
-  ;(chunk._t as InternalTemplate).d?.()
+function recycleChunk(chunk: Chunk, detached = false) {
+  if (!detached) moveDOMRef(chunk.ref, chunk.dom)
+  chunk._t._m = false
+  chunk._t._h = undefined
   addStaleChunk(chunk)
 }
 
@@ -974,18 +1141,39 @@ function removeUnmounted(
     | Chunk
     | Text
     | ChildNode
-    | Array<Chunk | Text | ChildNode>
+    | Array<Chunk | Text | ChildNode>,
+  detached = false
 ) {
   if (isChunk(chunk)) {
-    if (chunk.r) recycleChunk(chunk)
-    else destroyChunk(chunk)
+    if (chunk.r) recycleChunk(chunk, detached)
+    else destroyChunk(chunk, detached)
     return
   }
   if (Array.isArray(chunk)) {
-    for (let i = 0; i < chunk.length; i++) removeUnmounted(chunk[i])
+    if (!detached && chunk.length) {
+      const first = getNode(chunk[0], undefined, true)
+      const last = getNode(chunk[chunk.length - 1])
+      const parent = first.parentNode
+      if (parent) {
+        const range = document.createRange()
+        range.setStartBefore(first)
+        range.setEndAfter(last)
+        range.deleteContents()
+        detached = true
+      }
+    }
+    for (let i = 0; i < chunk.length; i++) {
+      const item = chunk[i]
+      if (isChunk(item)) {
+        if (item.r) recycleChunk(item, detached)
+        else destroyChunk(item, detached)
+      } else if (!detached) {
+        item.remove()
+      }
+    }
     return
   }
-  chunk.remove()
+  if (!detached) chunk.remove()
 }
 
 function drainUnmountStack() {
@@ -1086,6 +1274,8 @@ function createPaths(dom: DocumentFragment): Chunk['paths'] {
         if (attr.value === delimiterComment) pushPath(attr.name)
       }
     } else if (node.nodeType === 8) {
+      pushPath()
+    } else if (node.nodeType === 3 && node.nodeValue === delimiterComment) {
       pushPath()
     }
     const children = node.childNodes
