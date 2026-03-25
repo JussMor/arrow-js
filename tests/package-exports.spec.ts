@@ -128,7 +128,7 @@ describe('packaged Arrow exports', () => {
       expect(hydratePackage.exports['.'].import).toBe('./dist/index.mjs')
       expect(highlightPackage.exports['.'].import).toBe('./dist/index.mjs')
     },
-    300_000
+    90_000
   )
 })
 

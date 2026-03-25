@@ -171,15 +171,7 @@ describe('create-arrow-js', () => {
         cwd: projectDir,
       })
 
-      const server = execa('pnpm', ['dev'], {
-        all: true,
-        cwd: projectDir,
-        env: {
-          ...process.env,
-          PORT: '0',
-        },
-        reject: false,
-      })
+      const server = startArrowAppServer(projectDir)
 
       try {
         const output = await waitForStreamMatch(
@@ -189,7 +181,7 @@ describe('create-arrow-js', () => {
         const port = Number(
           /Arrow app running at http:\/\/127\.0\.0\.1:(\d+)/.exec(output)?.[1]
         )
-        const response = await fetch(`http://127.0.0.1:${port}/`)
+        const response = await fetchWithTimeout(`http://127.0.0.1:${port}/`)
         const html = await response.text()
 
         expect(response.status).toBe(200)
@@ -197,11 +189,10 @@ describe('create-arrow-js', () => {
         expect(html).toContain('pnpm create arrow-js@latest')
         expect(html).toContain('SSR + Hydration')
       } finally {
-        server.kill('SIGTERM')
-        await server.catch(() => undefined)
+        await stopProcess(server)
       }
     },
-    300_000
+    90_000
   )
 
   runVite8Only(
@@ -227,7 +218,7 @@ describe('create-arrow-js', () => {
         cwd: projectDir,
       })
     },
-    300_000
+    90_000
   )
 })
 
@@ -424,6 +415,51 @@ function waitForStreamMatch(
     stream.on('data', onData)
     stream.on('end', onEnd)
     stream.on('error', onError)
+  })
+}
+
+function startArrowAppServer(projectDir: string) {
+  return execa('node', ['server.mjs'], {
+    all: true,
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      PORT: '0',
+    },
+    reject: false,
+  })
+}
+
+async function stopProcess(process: ReturnType<typeof startArrowAppServer>) {
+  process.kill('SIGTERM')
+
+  const result = await Promise.race([
+    process.then(() => 'exited', () => 'exited'),
+    wait(5_000).then(() => 'timeout'),
+  ])
+
+  if (result === 'timeout') {
+    process.kill('SIGKILL')
+    await process.catch(() => undefined)
+  }
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 10_000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, {
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
   })
 }
 
