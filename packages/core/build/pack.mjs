@@ -25,7 +25,12 @@ async function rollupBuild(build) {
 
 async function removeArtifacts() {
   const files = (await readdir(`${rootDir}/dist`))
-    .filter((file) => file.endsWith('.d.ts') && !file.startsWith('index.'))
+    .filter(
+      (file) =>
+        file.endsWith('.d.ts') &&
+        !file.startsWith('index.') &&
+        !file.startsWith('internal.')
+    )
     .map((file) => `${rootDir}/dist/${file}`)
   await Promise.all(files.map((file) => rm(file, { force: true })))
 }
@@ -35,10 +40,14 @@ async function removeArtifacts() {
     await clean()
     info('Rolling up primary package')
     await rollupBuild()
+    info('Rolling up internal entry')
+    await rollupBuild('internal')
     info('Rolling up IIFE')
     await rollupBuild('iife')
     info('Rolling up types')
     await rollupBuild('types')
+    info('Rolling up internal types')
+    await rollupBuild('internal-types')
     await removeArtifacts()
     success('Build complete')
   } catch (cause) {

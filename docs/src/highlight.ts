@@ -46,6 +46,10 @@ const ARROW_TEMPLATE_PUNCTUATION_SCOPES = [
   'punctuation.definition.template-expression',
   'punctuation.section.embedded',
 ]
+const CUT_BEFORE = /^\/\/\s?---cut(?:-before)?---$/
+const CUT_AFTER = /^\/\/\s?---cut-after---$/
+const CUT_START = /^\/\/\s?---cut-start---$/
+const CUT_END = /^\/\/\s?---cut-end---$/
 type SupportedLanguage =
   | 'js'
   | 'ts'
@@ -129,6 +133,103 @@ function stripTwoslashReferenceLine(html: string) {
   if (firstLine?.textContent?.includes(TWOSLASH_TYPES_PATH)) {
     firstLine.remove()
   }
+
+  return wrapper.outerHTML
+}
+
+function getVisibleCodeLineFlags(source: string) {
+  const lines = source.split('\n')
+  const visible = new Array(lines.length).fill(true)
+  let skipping = false
+  let cutBeforeIndex = -1
+  let cutAfterIndex = -1
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim()
+
+    if (CUT_BEFORE.test(trimmed)) {
+      cutBeforeIndex = index
+      visible[index] = false
+      return
+    }
+
+    if (CUT_AFTER.test(trimmed)) {
+      cutAfterIndex = index
+      visible[index] = false
+      return
+    }
+
+    if (CUT_START.test(trimmed)) {
+      skipping = true
+      visible[index] = false
+      return
+    }
+
+    if (CUT_END.test(trimmed)) {
+      skipping = false
+      visible[index] = false
+      return
+    }
+
+    if (skipping) {
+      visible[index] = false
+    }
+  })
+
+  if (cutBeforeIndex !== -1) {
+    visible.fill(false, 0, cutBeforeIndex + 1)
+  }
+
+  if (cutAfterIndex !== -1) {
+    visible.fill(false, cutAfterIndex)
+  }
+
+  return visible
+}
+
+function stripHiddenCodeLinesFromHtml(html: string, source: string) {
+  if (!source.includes('---cut')) {
+    return html
+  }
+
+  const wrapper = createCodeWrapper(html)
+
+  if (!(wrapper instanceof HTMLElement)) {
+    return html
+  }
+
+  const code = wrapper.querySelector('code')
+
+  if (!(code instanceof HTMLElement)) {
+    return html
+  }
+
+  const visibleLines = getVisibleCodeLineFlags(source)
+  const renderedLines = Array.from(code.children).filter(
+    (child): child is HTMLElement =>
+      child instanceof HTMLElement && child.classList.contains('line')
+  )
+
+  renderedLines.forEach((line, index) => {
+    if ((visibleLines[index] ?? true) && !line.textContent?.includes('---cut-')) {
+      return
+    }
+
+    const nextSibling = line.nextSibling
+    const previousSibling = line.previousSibling
+    line.remove()
+
+    if (nextSibling?.nodeType === Node.TEXT_NODE && nextSibling.textContent === '\n') {
+      nextSibling.remove()
+    } else if (
+      previousSibling?.nodeType === Node.TEXT_NODE &&
+      previousSibling.textContent === '\n'
+    ) {
+      previousSibling.remove()
+    }
+  })
+
+  trimCodeWhitespace(wrapper)
 
   return wrapper.outerHTML
 }
@@ -288,7 +389,7 @@ function renderCodeBlock(
   }
 
   if (lang !== 'ts' || !enableTwoslash) {
-    return highlighter.codeToHtml(code, options)
+    return stripHiddenCodeLinesFromHtml(highlighter.codeToHtml(code, options), code)
   }
 
   try {
@@ -302,9 +403,9 @@ function renderCodeBlock(
       ],
     })
 
-    return stripTwoslashReferenceLine(html)
+    return stripHiddenCodeLinesFromHtml(stripTwoslashReferenceLine(html), code)
   } catch (error) {
-    return highlighter.codeToHtml(code, options)
+    return stripHiddenCodeLinesFromHtml(highlighter.codeToHtml(code, options), code)
   }
 }
 

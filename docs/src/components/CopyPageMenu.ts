@@ -1,14 +1,15 @@
-import { component, html, reactive, type ArrowTemplate, type Props } from '@arrow-js/core'
+import { component, html, onCleanup, reactive, type Props } from '@arrow-js/core'
 
 type CopyPageMenuProps = Record<PropertyKey, unknown> & {
   markdownPath: string
 }
 
-export const CopyPageMenu = component<CopyPageMenuProps, ArrowTemplate>((props: Props<CopyPageMenuProps>) => {
+export const CopyPageMenu = component<CopyPageMenuProps>((props: Props<CopyPageMenuProps>) => {
   const state = reactive({ open: false, copied: false })
   const dropdownId = `copy-menu-${props.markdownPath.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()}`
 
   let copyTimer = 0
+  let removeDocumentListener: (() => void) | undefined
 
   const markdownUrl = () =>
     typeof window !== 'undefined'
@@ -41,12 +42,30 @@ export const CopyPageMenu = component<CopyPageMenuProps, ArrowTemplate>((props: 
   }
 
   if (typeof window !== 'undefined') {
-    document.addEventListener('click', (e) => {
-      if (state.open && !(e.target as Element).closest('.copy-menu')) {
-        close()
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target
+
+      if (
+        !state.open ||
+        !(target instanceof Element) ||
+        target.closest('.copy-menu')
+      ) {
+        return
       }
-    })
+
+      close()
+    }
+
+    document.addEventListener('click', handleDocumentClick)
+    removeDocumentListener = () => {
+      document.removeEventListener('click', handleDocumentClick)
+    }
   }
+
+  onCleanup(() => {
+    window.clearTimeout(copyTimer)
+    removeDocumentListener?.()
+  })
 
   const chatgptUrl = () => {
     const prompt = `Read this documentation and answer my questions: ${markdownUrl()}`
@@ -79,7 +98,7 @@ export const CopyPageMenu = component<CopyPageMenuProps, ArrowTemplate>((props: 
     <div
       id="${dropdownId}"
       class="copy-menu-dropdown"
-      data-open="${() => (state.open ? '' : false)}"
+      data-open="${() => (state.open ? 'true' : false)}"
     >
       <button class="copy-menu-item" @click="${copyPage}">
         <span class="copy-menu-icon copy-menu-icon--copy"></span>

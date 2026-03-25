@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { rm } from 'node:fs/promises'
+import { access, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 
@@ -22,6 +22,7 @@ await rm(distDir, {
 })
 
 await runRollup()
+await waitForDeclarations()
 await runRollup('types')
 
 await rm(path.resolve(distDir, 'types'), {
@@ -60,4 +61,34 @@ async function runRollup(build) {
       stdio: 'inherit',
     }
   )
+}
+
+async function waitForDeclarations() {
+  const declarationFiles = Object.keys(entries).map((name) =>
+    path.resolve(distDir, 'types', `${name}.d.ts`)
+  )
+  const deadline = Date.now() + 5000
+
+  while (true) {
+    const results = await Promise.allSettled(
+      declarationFiles.map((file) => access(file))
+    )
+
+    if (results.every((result) => result.status === 'fulfilled')) {
+      return
+    }
+
+    if (Date.now() >= deadline) {
+      const missing = declarationFiles.filter(
+        (_, index) => results[index]?.status !== 'fulfilled'
+      )
+      throw new Error(
+        `Timed out waiting for declaration files: ${missing.join(', ')}`
+      )
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50)
+    })
+  }
 }

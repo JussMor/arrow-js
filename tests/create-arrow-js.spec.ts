@@ -9,6 +9,7 @@ import {
   detectPackageManager,
   scaffoldArrowApp,
 } from '../packages/create-arrow-js/scaffold.js'
+import { withWorkspaceBuildLock } from './helpers/workspace-build-lock.js'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const arrowPackages = [
@@ -18,6 +19,8 @@ const arrowPackages = [
   '@arrow-js/ssr',
   '@arrow-js/skill',
 ] as const
+const supportsVite8Runtime = isSupportedVite8Runtime()
+const runVite8Only = supportsVite8Runtime ? it : it.skip
 
 const tempDirs: string[] = []
 
@@ -140,7 +143,7 @@ describe('create-arrow-js', () => {
     }
   })
 
-  it(
+  runVite8Only(
     'renders the scaffolded app in dev mode with packed workspace packages',
     async () => {
       const workspace = await createTempDir()
@@ -202,7 +205,7 @@ describe('create-arrow-js', () => {
     300_000
   )
 
-  it(
+  runVite8Only(
     'installs and builds against packed workspace packages',
     async () => {
       const workspace = await createTempDir()
@@ -238,6 +241,16 @@ describe('create-arrow-js', () => {
     300_000
   )
 })
+
+function isSupportedVite8Runtime() {
+  const [major, minor] = process.versions.node.split('.').map(Number)
+
+  return (
+    (major === 20 && minor >= 19) ||
+    (major === 22 && minor >= 12) ||
+    major > 22
+  )
+}
 
 async function createTempDir() {
   const directory = await fs.mkdtemp(path.resolve(os.tmpdir(), 'arrow-create-'))
@@ -289,11 +302,13 @@ async function buildPackableWorkspacePackages() {
     '@arrow-js/hydrate': 'build',
   }
 
-  for (const packageName of buildOrder) {
-    await execa('pnpm', ['--filter', packageName, buildScripts[packageName]], {
-      cwd: repoRoot,
-    })
-  }
+  await withWorkspaceBuildLock(async () => {
+    for (const packageName of buildOrder) {
+      await execa('pnpm', ['--filter', packageName, buildScripts[packageName]], {
+        cwd: repoRoot,
+      })
+    }
+  })
 }
 
 async function rewriteArrowDependencies(

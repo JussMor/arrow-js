@@ -1,5 +1,5 @@
 import { nextTick } from '@arrow-js/core'
-import type { HydrationCapture } from '@arrow-js/core'
+import type { HydrationCapture } from '@arrow-js/core/internal'
 
 export interface RenderContext {
   pending: Set<Promise<unknown>>
@@ -139,6 +139,7 @@ function createRenderContext(options: RenderContextOptions): RenderContext {
 function createAsyncContextStorage<T>(): AsyncContextStore<T> | null {
   if (
     typeof process === 'undefined' ||
+    typeof process.versions?.node !== 'string' ||
     typeof process.getBuiltinModule !== 'function'
   ) {
     return null

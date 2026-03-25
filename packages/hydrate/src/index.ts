@@ -1,11 +1,13 @@
-import '@arrow-js/framework'
+import '@arrow-js/framework/internal'
 
-import {
-  createHydrationCapture,
-} from '@arrow-js/core'
 import type { ArrowTemplate, ParentNode } from '@arrow-js/core'
-import type { RenderPayload } from '@arrow-js/framework'
-import { toTemplate, withRenderContext } from '@arrow-js/framework'
+import { createHydrationCapture } from '@arrow-js/core/internal'
+import type {
+  ArrowTemplate as InternalArrowTemplate,
+  ParentNode as InternalParentNode,
+} from '@arrow-js/core/internal'
+import type { RenderPayload } from '@arrow-js/framework/internal'
+import { toTemplate, withRenderContext } from '@arrow-js/framework/internal'
 import { hydrateTemplate } from './reconcile'
 
 export interface HydrationPayload {
@@ -62,7 +64,15 @@ export async function hydrate(
         mismatches: 0,
       }
 
-      if (hydrateTemplate(capture, template, root, stage, hydration)) {
+      if (
+        hydrateTemplate(
+          capture,
+          template as InternalArrowTemplate,
+          root as InternalParentNode,
+          stage as InternalParentNode,
+          hydration
+        )
+      ) {
         if (hydration.mismatches) {
           options.onMismatch?.({
             actual,

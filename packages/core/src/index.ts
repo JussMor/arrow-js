@@ -1,10 +1,5 @@
 import { component, pick } from './component'
 import { html } from './html'
-import {
-  adoptCapturedChunk,
-  createHydrationCapture,
-  installHydrationCaptureProvider,
-} from './hydration'
 import { reactive, watch } from './reactive'
 import { nextTick, onCleanup } from './common'
 
@@ -20,13 +15,9 @@ export {
   watch,
   watch as w,
   onCleanup,
-  adoptCapturedChunk,
-  createHydrationCapture,
-  installHydrationCaptureProvider,
 }
 
 export { nextTick }
-export { installAsyncComponentInstaller } from './component'
 
 export type {
   ArrowExpression,
@@ -35,7 +26,6 @@ export type {
   ArrowTemplateKey,
   ParentNode,
 } from './html'
-export type { HydrationCapture } from './hydration'
 
 export type {
   AsyncComponentOptions,

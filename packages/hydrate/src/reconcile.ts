@@ -1,6 +1,9 @@
-import { adoptCapturedChunk } from '@arrow-js/core'
-import type { ArrowTemplate, ParentNode as ArrowParentNode } from '@arrow-js/core'
-import type { HydrationCapture } from '@arrow-js/core'
+import {
+  adoptCapturedChunk,
+  type ArrowTemplate,
+  type HydrationCapture,
+  type ParentNode as ArrowParentNode,
+} from '@arrow-js/core/internal'
 
 export interface HydrationStats {
   mismatches: number

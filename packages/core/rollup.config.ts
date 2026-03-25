@@ -14,6 +14,20 @@ if (process.env.BUILD === 'types') {
   plugins.push(dts())
   output.file = 'dist/index.d.ts'
   input = 'dist/index.d.ts'
+} else if (process.env.BUILD === 'internal-types') {
+  plugins.push(dts())
+  output.file = 'dist/internal.d.ts'
+  input = 'dist/internal.d.ts'
+} else if (process.env.BUILD === 'internal') {
+  output.sourcemap = true
+  output.file = 'dist/internal.mjs'
+  plugins.push(
+    typescript({
+      sourceMap: false,
+      exclude: ['rollup.config.ts', 'src/__tests__/**'],
+    })
+  )
+  input = 'src/internal.ts'
 } else if (process.env.BUILD === 'iife') {
   output.sourcemap = true
   output.name = '$arrow'

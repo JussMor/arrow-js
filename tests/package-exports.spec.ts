@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { afterEach, describe, expect, it } from 'vitest'
+import { withWorkspaceBuildLock } from './helpers/workspace-build-lock.js'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const packagedArrowLibraries = [
@@ -76,6 +77,7 @@ describe('packaged Arrow exports', () => {
         verifyScriptPath,
         [
           'await Promise.all([',
+          "  import('@arrow-js/core/internal'),",
           "  import('@arrow-js/framework'),",
           "  import('@arrow-js/framework/internal'),",
           "  import('@arrow-js/framework/ssr'),",
@@ -95,6 +97,12 @@ describe('packaged Arrow exports', () => {
       const frameworkPackage = JSON.parse(
         await fs.readFile(
           path.resolve(consumerDir, 'node_modules/@arrow-js/framework/package.json'),
+          'utf8'
+        )
+      )
+      const corePackage = JSON.parse(
+        await fs.readFile(
+          path.resolve(consumerDir, 'node_modules/@arrow-js/core/package.json'),
           'utf8'
         )
       )
@@ -118,6 +126,7 @@ describe('packaged Arrow exports', () => {
       )
 
       expect(stdout).toContain('imports ok')
+      expect(corePackage.exports['./internal'].import).toBe('./dist/internal.mjs')
       expect(frameworkPackage.exports['.'].import).toBe('./dist/index.mjs')
       expect(frameworkPackage.exports['./internal'].import).toBe('./dist/internal.mjs')
       expect(frameworkPackage.exports['./ssr'].import).toBe('./dist/ssr.mjs')
@@ -151,11 +160,13 @@ async function buildPackableWorkspacePackages() {
     '@arrow-js/highlight': 'build',
   }
 
-  for (const packageName of buildOrder) {
-    await execa('pnpm', ['--filter', packageName, buildScripts[packageName]], {
-      cwd: repoRoot,
-    })
-  }
+  await withWorkspaceBuildLock(async () => {
+    for (const packageName of buildOrder) {
+      await execa('pnpm', ['--filter', packageName, buildScripts[packageName]], {
+        cwd: repoRoot,
+      })
+    }
+  })
 }
 
 async function packWorkspacePackage(packageName: string, packDir: string) {

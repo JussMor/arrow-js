@@ -93,12 +93,12 @@ test('playground loads the starter multi-file example', async ({ page }) => {
   expect(messages).toEqual([])
 })
 
-test('playground loads every registered example by direct url', async ({ page }) => {
-  const preview = page.frameLocator('#play-preview')
+for (const example of playgroundExampleMeta.filter(
+  ({ id }) => id !== starterExampleId
+)) {
+  test(`playground loads the ${example.id} example by direct url`, async ({ page }) => {
+    const preview = page.frameLocator('#play-preview')
 
-  expect(playgroundExampleMeta.length).toBeGreaterThan(6)
-
-  for (const example of playgroundExampleMeta) {
     await page.goto(playgroundExampleHref(example.id))
 
     await expect(page.locator('.play-file-name')).not.toHaveCount(0)
@@ -117,8 +117,8 @@ test('playground loads every registered example by direct url', async ({ page })
         }
       )
       .toBe(true)
-  }
-})
+  })
+}
 
 test('playground makes @arrow-js/sandbox available by import', async ({ page }) => {
   await page.goto(playgroundExampleHref(starterExampleId))
