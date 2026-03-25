@@ -1,12 +1,10 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { afterEach, describe, expect, it } from 'vitest'
-import { withWorkspaceBuildLock } from './helpers/workspace-build-lock.js'
+import { getPackedWorkspacePackages } from './helpers/packed-workspace-packages.js'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const packagedArrowLibraries = [
   '@arrow-js/core',
   '@arrow-js/framework',
@@ -29,21 +27,10 @@ describe('packaged Arrow exports', () => {
     'imports the packaged runtime libraries in plain Node without loading TypeScript from node_modules',
     async () => {
       const workspace = await createTempDir()
-      const packDir = path.resolve(workspace, 'packs')
       const consumerDir = path.resolve(workspace, 'consumer')
 
-      await fs.mkdir(packDir, { recursive: true })
       await fs.mkdir(consumerDir, { recursive: true })
-      await buildPackableWorkspacePackages()
-
-      const tarballs = Object.fromEntries(
-        await Promise.all(
-          packagedArrowLibraries.map(async (packageName) => [
-            packageName,
-            await packWorkspacePackage(packageName, packDir),
-          ])
-        )
-      )
+      const tarballs = await getPackedWorkspacePackages(packagedArrowLibraries)
 
       await fs.writeFile(
         path.resolve(consumerDir, 'package.json'),
@@ -142,44 +129,6 @@ async function createTempDir() {
   const directory = await fs.mkdtemp(path.resolve(os.tmpdir(), 'arrow-package-'))
   tempDirs.push(directory)
   return directory
-}
-
-async function buildPackableWorkspacePackages() {
-  const buildOrder = [
-    '@arrow-js/core',
-    '@arrow-js/framework',
-    '@arrow-js/ssr',
-    '@arrow-js/hydrate',
-    '@arrow-js/highlight',
-  ] as const
-  const buildScripts: Record<(typeof buildOrder)[number], string> = {
-    '@arrow-js/core': 'build:runtime',
-    '@arrow-js/framework': 'build',
-    '@arrow-js/ssr': 'build',
-    '@arrow-js/hydrate': 'build',
-    '@arrow-js/highlight': 'build',
-  }
-
-  await withWorkspaceBuildLock(async () => {
-    for (const packageName of buildOrder) {
-      await execa('pnpm', ['--filter', packageName, buildScripts[packageName]], {
-        cwd: repoRoot,
-      })
-    }
-  })
-}
-
-async function packWorkspacePackage(packageName: string, packDir: string) {
-  const packageDirectory = path.resolve(repoRoot, 'packages', packageName.split('/').at(-1)!)
-  const { stdout } = await execa(
-    'pnpm',
-    ['pack', '--json', '--pack-destination', packDir],
-    {
-      cwd: packageDirectory,
-    }
-  )
-  const details = JSON.parse(stdout) as { filename: string }
-  return details.filename
 }
 
 function normalizePath(value: string) {

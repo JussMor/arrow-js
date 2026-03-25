@@ -1,14 +1,16 @@
+import os from 'node:os'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
-const lockDir = path.resolve(
+const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
-  '..',
-  '.tmp',
-  'workspace-build-lock'
+  '..'
 )
+const workspaceKey = createHash('sha1').update(repoRoot).digest('hex').slice(0, 12)
+const lockDir = path.resolve(os.tmpdir(), `arrow-workspace-tests-${workspaceKey}`, 'workspace-build-lock')
 
 export async function withWorkspaceBuildLock<T>(fn: () => Promise<T>) {
   await fs.mkdir(path.dirname(lockDir), { recursive: true })

@@ -9,7 +9,7 @@ import {
   detectPackageManager,
   scaffoldArrowApp,
 } from '../packages/create-arrow-js/scaffold.js'
-import { withWorkspaceBuildLock } from './helpers/workspace-build-lock.js'
+import { getPackedWorkspacePackages } from './helpers/packed-workspace-packages.js'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const arrowPackages = [
@@ -148,23 +148,11 @@ describe('create-arrow-js', () => {
     async () => {
       const workspace = await createTempDir()
       const projectDir = path.resolve(workspace, 'arrow-app')
-      const packDir = path.resolve(workspace, 'packs')
 
       await scaffoldArrowApp(projectDir, {
         skillAgent: 'skip',
       })
-      await fs.mkdir(packDir, { recursive: true })
-
-      await buildPackableWorkspacePackages()
-
-      const tarballs = Object.fromEntries(
-        await Promise.all(
-          arrowPackages.map(async (packageName) => [
-            packageName,
-            await packWorkspacePackage(packageName, packDir),
-          ])
-        )
-      )
+      const tarballs = await getPackedWorkspacePackages(arrowPackages)
 
       await rewriteArrowDependencies(projectDir, tarballs)
 
@@ -210,21 +198,9 @@ describe('create-arrow-js', () => {
     async () => {
       const workspace = await createTempDir()
       const projectDir = path.resolve(workspace, 'arrow-app')
-      const packDir = path.resolve(workspace, 'packs')
 
       await scaffoldArrowApp(projectDir)
-      await fs.mkdir(packDir, { recursive: true })
-
-      await buildPackableWorkspacePackages()
-
-      const tarballs = Object.fromEntries(
-        await Promise.all(
-          arrowPackages.map(async (packageName) => [
-            packageName,
-            await packWorkspacePackage(packageName, packDir),
-          ])
-        )
-      )
+      const tarballs = await getPackedWorkspacePackages(arrowPackages)
 
       await rewriteArrowDependencies(projectDir, tarballs)
 
@@ -269,46 +245,6 @@ async function readCreateArrowVersions() {
 
 async function expectFile(rootDir: string, relativePath: string) {
   await fs.access(path.resolve(rootDir, relativePath))
-}
-
-async function packWorkspacePackage(packageName: string, packDir: string) {
-  const packageDirectory = path.resolve(
-    repoRoot,
-    'packages',
-    packageName.startsWith('@arrow-js/') ? packageName.split('/')[1] : packageName
-  )
-  const { stdout } = await execa(
-    'pnpm',
-    ['pack', '--json', '--pack-destination', packDir],
-    {
-      cwd: packageDirectory,
-    }
-  )
-  const details = JSON.parse(stdout) as { filename: string }
-  return details.filename
-}
-
-async function buildPackableWorkspacePackages() {
-  const buildOrder = [
-    '@arrow-js/core',
-    '@arrow-js/framework',
-    '@arrow-js/ssr',
-    '@arrow-js/hydrate',
-  ] as const
-  const buildScripts: Record<(typeof buildOrder)[number], string> = {
-    '@arrow-js/core': 'build:runtime',
-    '@arrow-js/framework': 'build',
-    '@arrow-js/ssr': 'build',
-    '@arrow-js/hydrate': 'build',
-  }
-
-  await withWorkspaceBuildLock(async () => {
-    for (const packageName of buildOrder) {
-      await execa('pnpm', ['--filter', packageName, buildScripts[packageName]], {
-        cwd: repoRoot,
-      })
-    }
-  })
 }
 
 async function rewriteArrowDependencies(
