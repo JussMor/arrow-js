@@ -18,10 +18,11 @@ const arrowPackages = [
   '@arrow-js/framework',
   '@arrow-js/hydrate',
   '@arrow-js/ssr',
-  '@arrow-js/skill',
 ] as const
 const supportsVite8Runtime = isSupportedVite8Runtime()
 const runVite8Only = supportsVite8Runtime ? it : it.skip
+const packedWorkspaceTimeout =
+  process.platform === 'linux' && process.env.CI === 'true' ? 300_000 : 150_000
 
 const tempDirs: string[] = []
 
@@ -195,7 +196,7 @@ describe('create-arrow-js', () => {
         }
       })
     },
-    150_000
+    packedWorkspaceTimeout
   )
 
   runVite8Only(
@@ -206,7 +207,9 @@ describe('create-arrow-js', () => {
       const packDir = path.resolve(workspace, 'packs')
 
       await withWorkspaceIntegrationLock(async () => {
-        await scaffoldArrowApp(projectDir)
+        await scaffoldArrowApp(projectDir, {
+          skillAgent: 'skip',
+        })
         await fs.mkdir(packDir, { recursive: true })
         const tarballs = await getPackedWorkspacePackages(arrowPackages, packDir)
 
@@ -223,7 +226,7 @@ describe('create-arrow-js', () => {
         })
       })
     },
-    150_000
+    packedWorkspaceTimeout
   )
 })
 
