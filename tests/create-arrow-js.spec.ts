@@ -10,6 +10,7 @@ import {
   scaffoldArrowApp,
 } from '../packages/create-arrow-js/scaffold.js'
 import { getPackedWorkspacePackages } from './helpers/packed-workspace-packages.js'
+import { withWorkspaceIntegrationLock } from './helpers/workspace-build-lock.js'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const arrowPackages = [
@@ -202,23 +203,25 @@ describe('create-arrow-js', () => {
       const projectDir = path.resolve(workspace, 'arrow-app')
       const packDir = path.resolve(workspace, 'packs')
 
-      await scaffoldArrowApp(projectDir)
-      await fs.mkdir(packDir, { recursive: true })
-      const tarballs = await getPackedWorkspacePackages(arrowPackages, packDir)
+      await withWorkspaceIntegrationLock(async () => {
+        await scaffoldArrowApp(projectDir)
+        await fs.mkdir(packDir, { recursive: true })
+        const tarballs = await getPackedWorkspacePackages(arrowPackages, packDir)
 
-      await rewriteArrowDependencies(projectDir, tarballs)
+        await rewriteArrowDependencies(projectDir, tarballs)
 
-      await execa('pnpm', ['install', '--prefer-offline'], {
-        cwd: projectDir,
-      })
-      await execa('pnpm', ['typecheck'], {
-        cwd: projectDir,
-      })
-      await execa('pnpm', ['build'], {
-        cwd: projectDir,
+        await execa('pnpm', ['install', '--prefer-offline'], {
+          cwd: projectDir,
+        })
+        await execa('pnpm', ['typecheck'], {
+          cwd: projectDir,
+        })
+        await execa('pnpm', ['build'], {
+          cwd: projectDir,
+        })
       })
     },
-    90_000
+    150_000
   )
 })
 
