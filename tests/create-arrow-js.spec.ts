@@ -157,11 +157,13 @@ describe('create-arrow-js', () => {
     async () => {
       const workspace = await createTempDir()
       const projectDir = path.resolve(workspace, 'arrow-app')
+      const packDir = path.resolve(workspace, 'packs')
 
       await scaffoldArrowApp(projectDir, {
         skillAgent: 'skip',
       })
-      const tarballs = await getPackedWorkspacePackages(arrowPackages)
+      await fs.mkdir(packDir, { recursive: true })
+      const tarballs = await getPackedWorkspacePackages(arrowPackages, packDir)
 
       await rewriteArrowDependencies(projectDir, tarballs)
 
@@ -207,9 +209,11 @@ describe('create-arrow-js', () => {
     async () => {
       const workspace = await createTempDir()
       const projectDir = path.resolve(workspace, 'arrow-app')
+      const packDir = path.resolve(workspace, 'packs')
 
       await scaffoldArrowApp(projectDir)
-      const tarballs = await getPackedWorkspacePackages(arrowPackages)
+      await fs.mkdir(packDir, { recursive: true })
+      const tarballs = await getPackedWorkspacePackages(arrowPackages, packDir)
 
       await rewriteArrowDependencies(projectDir, tarballs)
 

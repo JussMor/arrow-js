@@ -11,7 +11,7 @@ const workspaceKey = createHash('sha1').update(repoRoot).digest('hex').slice(0, 
 const cacheDir = path.resolve(os.tmpdir(), `arrow-workspace-tests-${workspaceKey}`, 'packed-workspace')
 const manifestPath = path.resolve(cacheDir, 'manifest.json')
 
-const packageBuildScripts: Record<string, string> = {
+const packageBuildScripts: Record<string, string | undefined> = {
   '@arrow-js/core': 'build:runtime',
   '@arrow-js/framework': 'build',
   '@arrow-js/ssr': 'build',
@@ -27,70 +27,128 @@ const packageBuildOrder = [
   '@arrow-js/highlight',
 ] as const
 
-interface PackedWorkspaceManifest {
-  builtAtMs: number
-  tarballs: Record<string, string>
+interface PackedWorkspacePackageEntry {
+  inputMtimeMs: number
+  tarball: string
 }
 
-export async function getPackedWorkspacePackages(packageNames: readonly string[]) {
+interface PackedWorkspaceManifest {
+  packages: Record<string, PackedWorkspacePackageEntry>
+}
+
+export async function getPackedWorkspacePackages(
+  packageNames: readonly string[],
+  targetDir?: string
+) {
   const selectedPackages = [...new Set(packageNames)].sort()
 
   return withWorkspaceBuildLock(async () => {
-    const latestInputMtimeMs = await getLatestInputMtimeMs(selectedPackages)
-    const manifest = await readManifest()
-
-    if (
-      manifest &&
-      manifest.builtAtMs >= latestInputMtimeMs &&
-      selectedPackages.every((packageName) => manifest.tarballs[packageName]) &&
-      await allTarballsExist(selectedPackages, manifest.tarballs)
-    ) {
-      return Object.fromEntries(
-        selectedPackages.map((packageName) => [
-          packageName,
-          manifest.tarballs[packageName],
-        ])
-      ) as Record<string, string>
-    }
-
-    await fs.rm(cacheDir, {
-      force: true,
-      recursive: true,
-    })
     await fs.mkdir(cacheDir, { recursive: true })
 
+    const manifest = (await readManifest()) ?? { packages: {} }
+    const inputMtims = await getInputMtimes(selectedPackages)
+    const stalePackages: string[] = []
+
+    for (const packageName of selectedPackages) {
+      const cached = manifest.packages[packageName]
+      const inputMtimeMs = inputMtims[packageName]
+      const hasTarball = cached
+        ? await fileExists(cached.tarball)
+        : false
+
+      if (!cached || !hasTarball || cached.inputMtimeMs < inputMtimeMs) {
+        stalePackages.push(packageName)
+      }
+    }
+
     for (const packageName of packageBuildOrder) {
-      if (!selectedPackages.includes(packageName)) {
+      if (!stalePackages.includes(packageName)) {
+        continue
+      }
+
+      const buildScript = packageBuildScripts[packageName]
+
+      if (!buildScript) {
         continue
       }
 
       await execa(
         'pnpm',
-        ['--filter', packageName, packageBuildScripts[packageName]],
+        ['--filter', packageName, buildScript],
         {
           cwd: repoRoot,
         }
       )
     }
 
-    const tarballs: Record<string, string> = {}
-
-    for (const packageName of selectedPackages) {
-      tarballs[packageName] = await packWorkspacePackage(packageName, cacheDir)
+    for (const packageName of stalePackages) {
+      manifest.packages[packageName] = {
+        inputMtimeMs: inputMtims[packageName],
+        tarball: await packWorkspacePackage(packageName, cacheDir),
+      }
     }
 
     await fs.writeFile(
       manifestPath,
-      `${JSON.stringify({ builtAtMs: Date.now(), tarballs }, null, 2)}\n`
+      `${JSON.stringify(manifest, null, 2)}\n`
     )
 
-    return tarballs
+    const cachedTarballs = Object.fromEntries(
+      selectedPackages.map((packageName) => [
+        packageName,
+        manifest.packages[packageName]!.tarball,
+      ])
+    ) as Record<string, string>
+
+    if (!targetDir) {
+      return cachedTarballs
+    }
+
+    await fs.mkdir(targetDir, { recursive: true })
+
+    const copiedTarballs = Object.fromEntries(
+      await Promise.all(
+        selectedPackages.map(async (packageName) => {
+          const sourcePath = cachedTarballs[packageName]
+          const destinationPath = path.resolve(
+            targetDir,
+            path.basename(sourcePath)
+          )
+
+          await fs.copyFile(sourcePath, destinationPath)
+
+          return [packageName, destinationPath]
+        })
+      )
+    ) as Record<string, string>
+
+    return copiedTarballs
   })
 }
 
 async function readManifest() {
   try {
-    return JSON.parse(await fs.readFile(manifestPath, 'utf8')) as PackedWorkspaceManifest
+    const parsed = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as
+      | PackedWorkspaceManifest
+      | {
+          tarballs?: Record<string, string>
+        }
+
+    if ('packages' in parsed && parsed.packages) {
+      return parsed
+    }
+
+    return {
+      packages: Object.fromEntries(
+        Object.entries(parsed.tarballs ?? {}).map(([packageName, tarball]) => [
+          packageName,
+          {
+            inputMtimeMs: 0,
+            tarball,
+          },
+        ])
+      ),
+    }
   } catch (error) {
     if (
       error &&
@@ -105,33 +163,26 @@ async function readManifest() {
   }
 }
 
-async function allTarballsExist(
-  packageNames: readonly string[],
-  tarballs: Record<string, string>
-) {
-  const results = await Promise.allSettled(
-    packageNames.map((packageName) => fs.access(tarballs[packageName]))
+async function getInputMtimes(packageNames: readonly string[]) {
+  const entries = await Promise.all(
+    packageNames.map(async (packageName) => {
+      const inputPaths = [
+        path.resolve(repoRoot, 'scripts', 'build-package.mjs'),
+        path.resolve(
+          repoRoot,
+          'packages',
+          packageName.startsWith('@arrow-js/')
+            ? packageName.split('/')[1]
+            : packageName
+        ),
+      ]
+
+      const mtimes = await Promise.all(inputPaths.map((inputPath) => getPathMtimeMs(inputPath)))
+      return [packageName, Math.max(...mtimes, 0)] as const
+    })
   )
 
-  return results.every((result) => result.status === 'fulfilled')
-}
-
-async function getLatestInputMtimeMs(packageNames: readonly string[]) {
-  const inputPaths = [
-    path.resolve(repoRoot, 'scripts', 'build-package.mjs'),
-    ...packageNames.map((packageName) =>
-      path.resolve(
-        repoRoot,
-        'packages',
-        packageName.startsWith('@arrow-js/')
-          ? packageName.split('/')[1]
-          : packageName
-      )
-    ),
-  ]
-
-  const mtimes = await Promise.all(inputPaths.map((inputPath) => getPathMtimeMs(inputPath)))
-  return Math.max(...mtimes, 0)
+  return Object.fromEntries(entries) as Record<string, number>
 }
 
 async function getPathMtimeMs(targetPath: string): Promise<number> {
@@ -154,6 +205,24 @@ async function getPathMtimeMs(targetPath: string): Promise<number> {
   }
 
   return latestMtimeMs
+}
+
+async function fileExists(targetPath: string) {
+  try {
+    await fs.access(targetPath)
+    return true
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return false
+    }
+
+    throw error
+  }
 }
 
 async function packWorkspacePackage(packageName: string, packDestination: string) {

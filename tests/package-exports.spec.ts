@@ -27,10 +27,15 @@ describe('packaged Arrow exports', () => {
     'imports the packaged runtime libraries in plain Node without loading TypeScript from node_modules',
     async () => {
       const workspace = await createTempDir()
+      const packDir = path.resolve(workspace, 'packs')
       const consumerDir = path.resolve(workspace, 'consumer')
 
+      await fs.mkdir(packDir, { recursive: true })
       await fs.mkdir(consumerDir, { recursive: true })
-      const tarballs = await getPackedWorkspacePackages(packagedArrowLibraries)
+      const tarballs = await getPackedWorkspacePackages(
+        packagedArrowLibraries,
+        packDir
+      )
 
       await fs.writeFile(
         path.resolve(consumerDir, 'package.json'),
