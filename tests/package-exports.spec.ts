@@ -63,7 +63,8 @@ describe('packaged Arrow exports', () => {
       await fs.writeFile(
         verifyScriptPath,
         [
-          'await Promise.all([',
+          "const [{ component, html }] = await Promise.all([",
+          "  import('@arrow-js/core'),",
           "  import('@arrow-js/core/internal'),",
           "  import('@arrow-js/framework'),",
           "  import('@arrow-js/framework/internal'),",
@@ -72,6 +73,7 @@ describe('packaged Arrow exports', () => {
           "  import('@arrow-js/hydrate'),",
           "  import('@arrow-js/highlight'),",
           '])',
+          'component(async () => html`<p>ok</p>`)',
           "console.log('imports ok')",
           '',
         ].join('\n')

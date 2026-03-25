@@ -67,6 +67,15 @@ describe('create-arrow-js', () => {
     await expectFile(projectDir, 'src/entry-client.ts')
   })
 
+  it('boots the scaffold template route module without async runtime errors', async () => {
+    const { routeToPage } = await import('../packages/create-arrow-js/template/src/page.ts')
+
+    const page = routeToPage('http://arrow.local/')
+
+    expect(page.status).toBe(200)
+    expect(page.title).toBe('Arrow App')
+  })
+
   it('runs the package-manager install step in the CLI flow', async () => {
     const workspace = await createTempDir()
     const projectDir = path.resolve(workspace, 'arrow-app')

@@ -38,10 +38,8 @@ async function removeArtifacts() {
 ;(async () => {
   try {
     await clean()
-    info('Rolling up primary package')
+    info('Rolling up ESM entries')
     await rollupBuild()
-    info('Rolling up internal entry')
-    await rollupBuild('internal')
     info('Rolling up IIFE')
     await rollupBuild('iife')
     info('Rolling up types')

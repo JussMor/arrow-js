@@ -1,5 +1,4 @@
 import { component, html } from '@arrow-js/core'
-import '@arrow-js/framework/internal'
 import { loadWelcomeCard } from '../data/loadWelcomeCard'
 
 export const WelcomeCard = component(async () => {

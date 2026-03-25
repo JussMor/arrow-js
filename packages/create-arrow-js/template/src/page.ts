@@ -1,4 +1,4 @@
-import '@arrow-js/framework/internal'
+import '@arrow-js/framework'
 
 import { App } from './App'
 import { NotFound } from './components/NotFound'
