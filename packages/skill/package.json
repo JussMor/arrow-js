@@ -1,6 +1,6 @@
 {
   "name": "@arrow-js/skill",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CLI installer for the ArrowJS coding-agent skill.",
   "license": "MIT",
   "type": "module",
