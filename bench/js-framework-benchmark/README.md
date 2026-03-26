@@ -6,9 +6,11 @@ Arrow entries:
 - `frameworks/keyed/arrowjs`
 - `frameworks/non-keyed/arrowjs`
 
-The local harness syncs this workspace's compiled runtime into those official
-entries before every run. That means benchmark results reflect the current
-branch's real shipped Arrow build, not a benchmark-only adapter.
+The local harness syncs Arrow's benchmark source into those official entries
+and pins the benchmark dependency to the published `@arrow-js/core` version in
+`packages/core/package.json`. Benchmark runs therefore reflect the real npm
+release we intend to submit, not a benchmark-only adapter or an unshipped local
+runtime blob.
 
 Non-negotiables:
 

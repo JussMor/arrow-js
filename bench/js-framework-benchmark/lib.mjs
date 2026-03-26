@@ -1,9 +1,9 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
@@ -41,16 +41,14 @@ export function run(command, args, options = {}) {
   })
 }
 
-export function getVersionLabel() {
-  const pkg = JSON.parse(
+function getCorePackage() {
+  return JSON.parse(
     readFileSync(join(rootDir, 'packages', 'core', 'package.json'), 'utf8')
   )
-  const sha = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
-    cwd: rootDir,
-    encoding: 'utf8',
-  })
-  const suffix = sha.status === 0 ? `+${sha.stdout.trim()}` : ''
-  return `${pkg.version}${suffix}`
+}
+
+export function getPublishedCoreVersion() {
+  return getCorePackage().version
 }
 
 export function ensureBenchmarkRepo({ install = false } = {}) {
@@ -101,7 +99,7 @@ function createArrowMainSource(keyed) {
         }
         return rows
       }`
-  return `import { reactive, html } from './arrow.js';
+  return `import { reactive, html } from '@arrow-js/core';
 let data = reactive({
   items: [],
   selected: undefined,
@@ -229,20 +227,38 @@ function createArrowIndexHtml(keyed) {
 </head>
 <body>
   <div id="main"></div>
-  <script type="module" src="src/Main.js"></script>
+  <script type="module" src="dist/main.js"></script>
 </body>
 </html>
 `
 }
 
-export function syncArrowBenchmark() {
-  const distFile = join(rootDir, 'packages', 'core', 'dist', 'index.min.mjs')
-  if (!existsSync(distFile)) {
-    throw new Error('Missing packages/core/dist/index.min.mjs. Run `pnpm build:runtime` first.')
+function syncArrowPackageJson(packagePath) {
+  const pkg = existsSync(packagePath)
+    ? JSON.parse(readFileSync(packagePath, 'utf8'))
+    : {}
+  pkg.name = 'js-framework-benchmark-arrowjs'
+  pkg.version = '1.0.0'
+  pkg.description = 'ArrowJS demo'
+  pkg['js-framework-benchmark'] ??= {}
+  delete pkg['js-framework-benchmark'].frameworkVersion
+  pkg['js-framework-benchmark'].frameworkVersionFromPackage = '@arrow-js/core'
+  pkg['js-framework-benchmark'].frameworkHomeURL = 'https://www.arrow-js.com/'
+  pkg.scripts = {
+    dev: 'esbuild src/Main.js --bundle --format=esm --target=es2020 --outfile=dist/main.js --watch',
+    'build-prod':
+      'esbuild src/Main.js --bundle --format=esm --minify --target=es2020 --outfile=dist/main.js',
   }
+  pkg.dependencies = {
+    '@arrow-js/core': getPublishedCoreVersion(),
+  }
+  pkg.devDependencies = {
+    esbuild: '0.27.4',
+  }
+  writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`)
+}
 
-  const version = getVersionLabel()
-
+export function syncArrowBenchmark() {
   for (const keyed of [true, false]) {
     const targetDir = frameworkDir(keyed)
     const srcDir = join(targetDir, 'src')
@@ -251,16 +267,17 @@ export function syncArrowBenchmark() {
     const mainPath = join(srcDir, 'Main.js')
 
     mkdirSync(srcDir, { recursive: true })
-    copyFileSync(distFile, join(srcDir, 'arrow.js'))
+    rmSync(join(srcDir, 'arrow.js'), { force: true })
     writeFileSync(mainPath, createArrowMainSource(keyed))
     writeFileSync(indexPath, createArrowIndexHtml(keyed))
+    syncArrowPackageJson(packagePath)
+  }
+}
 
-    if (existsSync(packagePath)) {
-      const pkg = JSON.parse(readFileSync(packagePath, 'utf8'))
-      pkg['js-framework-benchmark'] ??= {}
-      pkg['js-framework-benchmark'].frameworkVersion = version
-      pkg['js-framework-benchmark'].frameworkHomeURL = 'https://www.arrow-js.com/'
-      writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`)
-    }
+export function buildArrowBenchmark() {
+  for (const keyed of [true, false]) {
+    const targetDir = frameworkDir(keyed)
+    run('npm', ['install'], { cwd: targetDir })
+    run('npm', ['run', 'build-prod'], { cwd: targetDir })
   }
 }

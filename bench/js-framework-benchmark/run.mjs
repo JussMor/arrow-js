@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import {
   benchmarkRepoDir,
+  buildArrowBenchmark,
   ensureBenchmarkRepo,
   rootDir,
   run,
@@ -87,8 +88,8 @@ process.on('SIGTERM', () => {
 
 try {
   ensureBenchmarkRepo({ install: true })
-  run('pnpm', ['build:runtime'], { cwd: rootDir })
   syncArrowBenchmark()
+  buildArrowBenchmark()
   rmSync(resultsDir, { recursive: true, force: true })
   mkdirSync(resultsDir, { recursive: true })
   server = spawn('npm', ['start'], {
